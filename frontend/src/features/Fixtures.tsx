@@ -1,20 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, flag } from "../api/client";
+import ErrorBox from "../components/ErrorBox";
 import type { Fixture, Team } from "../types";
 
 export default function Fixtures() {
   const [fixtures, setFixtures] = useState<Fixture[]>([]);
   const [teams, setTeams] = useState<Record<string, Team>>({});
   const [groupFilter, setGroupFilter] = useState<string>("ALL");
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    api.fixtures().then((d) => setFixtures(d.group_stage)).catch(() => {});
+  const loadAll = () => {
+    setError(null);
+    api.fixtures().then((d) => setFixtures(d.group_stage)).catch((e) => setError(String(e?.message || e)));
     api.teams().then((ts) => {
       const map: Record<string, Team> = {};
       ts.forEach((t) => (map[t.code] = t));
       setTeams(map);
-    });
-  }, []);
+    }).catch((e) => setError(String(e?.message || e)));
+  };
+  useEffect(loadAll, []);
 
   const filtered = useMemo(
     () =>
@@ -69,6 +73,8 @@ export default function Fixtures() {
           </button>
         ))}
       </div>
+
+      {error && <ErrorBox message={error} onRetry={loadAll} />}
 
       <div className="space-y-6">
         {byDate.map(([date, list]) => (

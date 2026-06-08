@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, flag } from "../api/client";
+import ModelInfo from "../components/ModelInfo";
 import type { MatchPrediction, Team } from "../types";
 
 export default function MatchPredictor() {
@@ -46,8 +47,13 @@ export default function MatchPredictor() {
 
   return (
     <div>
-      <h1 className="mb-1 font-display text-4xl tracking-wide">MATCH PREDICTOR</h1>
-      <p className="mb-6 text-white/60">Neutral-venue win / draw / loss probabilities and the most likely scoreline.</p>
+      <div className="mb-6 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="mb-1 font-display text-4xl tracking-wide">MATCH PREDICTOR</h1>
+          <p className="text-white/60">Neutral-venue win / draw / loss probabilities and the most likely scoreline.</p>
+        </div>
+        <ModelInfo />
+      </div>
 
       <div className="card p-6">
         <div className="grid items-center gap-4 md:grid-cols-[1fr_auto_1fr]">

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, flag } from "../api/client";
+import ErrorBox from "../components/ErrorBox";
+import ModelInfo from "../components/ModelInfo";
 import type { OddsRow } from "../types";
 
 const COLS: { key: keyof OddsRow; label: string }[] = [
@@ -14,11 +16,16 @@ export default function Odds() {
   const [rows, setRows] = useState<OddsRow[]>([]);
   const [sims, setSims] = useState(5000);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const load = (n: number) => {
     setLoading(true);
+    setError(null);
     api.odds(n).then((d) => {
       setRows(d.teams);
+      setLoading(false);
+    }).catch((e) => {
+      setError(String(e?.message || e));
       setLoading(false);
     });
   };
@@ -35,7 +42,8 @@ export default function Odds() {
             Each row = chance to reach that stage, from {sims.toLocaleString()} simulated tournaments.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <ModelInfo />
           {[2000, 5000, 10000].map((n) => (
             <button
               key={n}
@@ -52,6 +60,8 @@ export default function Odds() {
           ))}
         </div>
       </div>
+
+      {error && <ErrorBox message={error} onRetry={() => load(sims)} />}
 
       <div className="card overflow-x-auto">
         <table className="w-full text-sm">

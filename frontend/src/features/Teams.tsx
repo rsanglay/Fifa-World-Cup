@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, flag } from "../api/client";
 import PlayerPhoto from "../components/PlayerPhoto";
+import ErrorBox from "../components/ErrorBox";
 import type { Player, Team, TeamDetail } from "../types";
 
 const POS_ORDER = ["GK", "DEF", "MID", "FWD"] as const;
@@ -16,10 +17,13 @@ export default function Teams() {
   const [code, setCode] = useState<string>("");
   const [detail, setDetail] = useState<TeamDetail | null>(null);
   const [selected, setSelected] = useState<Player | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    api.teams().then(setTeams);
-  }, []);
+  const loadTeams = () => {
+    setError(null);
+    api.teams().then(setTeams).catch((e) => setError(String(e?.message || e)));
+  };
+  useEffect(loadTeams, []);
 
   useEffect(() => {
     if (!code) return;
@@ -47,6 +51,7 @@ export default function Teams() {
       <p className="mb-6 text-white/60">
         All 48 nations. Tap a team to see its 26-player squad with photos and stats.
       </p>
+      {error && <ErrorBox message={error} onRetry={loadTeams} />}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
         {(teams.length ? teams : Array(24).fill(null)).map((t, i) =>
           t ? (
