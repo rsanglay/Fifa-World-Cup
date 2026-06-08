@@ -101,6 +101,8 @@ def manage_team_odds(
 ) -> dict:
     """Title/round odds for the managed team with the chosen XI."""
     data = load_tournament()
+    if team not in data.teams:
+        raise KeyError(f"Unknown team code: {team}")
     delta_info = compute_lineup(team, starting_xi) if starting_xi else {"elo_delta": 0.0}
     deltas = {team: float(delta_info.get("elo_delta", 0.0))}
     mc = monte_carlo(data, n=simulations, lineup_deltas=deltas, seed=7)

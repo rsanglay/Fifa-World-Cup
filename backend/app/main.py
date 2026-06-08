@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
 from app.api.routes import router
+from app.core.data import ensure_fresh
 
 app = FastAPI(
     title="FIFA World Cup 2026 Predictor",
@@ -24,6 +25,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+@app.middleware("http")
+async def _data_freshness(request, call_next):
+    """Reload cached data if any data/*.json changed since the last request."""
+    ensure_fresh()
+    return await call_next(request)
+
 
 app.include_router(router, prefix="/api", tags=["world-cup"])
 

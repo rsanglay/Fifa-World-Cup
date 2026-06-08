@@ -21,6 +21,13 @@ from typing import Dict, Optional
 
 import numpy as np
 
+# --- Tuning constants -------------------------------------------------------
+# These are HAND-TUNED heuristics, not placeholders. They were calibrated on
+# Monte-Carlo output so the favourite's title odds land in a realistic ~20-28%
+# band for a 48-team field and single-match scorelines look right (strong-vs-weak
+# ~85% win, ~2-0). Changing any of them re-shapes every prediction — re-check the
+# odds distribution (GET /api/odds) after editing. See also tournament.py for the
+# fatigue + momentum constants.
 # Tournament-average goals per match (men's World Cup ~2.5-2.7).
 WC_AVG_TOTAL_GOALS = 2.65
 # How strongly an Elo edge converts into a goal-supremacy edge. Kept modest so

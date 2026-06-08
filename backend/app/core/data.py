@@ -182,3 +182,24 @@ def reset_caches() -> None:
     for fn in (load_teams, load_venues, load_historical, load_fixtures,
                load_squads, load_tournament, group_stage_with_rest, load_player_meta):
         fn.cache_clear()
+
+
+# --- Automatic cache invalidation when a data file changes on disk --------- #
+# Removes the "restart the server to pick up new data" footgun and prevents
+# serving stale teams/squads/photos during a live tournament. ensure_fresh() is
+# called once per request by a lightweight middleware; the stat() sweep is cheap.
+_DATA_MTIME = {"value": 0.0}
+
+
+def data_version() -> float:
+    try:
+        return max((f.stat().st_mtime for f in DATA_DIR.glob("*.json")), default=0.0)
+    except OSError:
+        return 0.0
+
+
+def ensure_fresh() -> None:
+    mt = data_version()
+    if mt > _DATA_MTIME["value"]:
+        _DATA_MTIME["value"] = mt
+        reset_caches()
