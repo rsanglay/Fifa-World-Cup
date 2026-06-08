@@ -1,0 +1,18 @@
+[
+  {"name":"MetLife Stadium","city":"East Rutherford","country":"USA","capacity":82500},
+  {"name":"AT&T Stadium","city":"Arlington","country":"USA","capacity":94000},
+  {"name":"Mercedes-Benz Stadium","city":"Atlanta","country":"USA","capacity":75000},
+  {"name":"Arrowhead Stadium","city":"Kansas City","country":"USA","capacity":73000},
+  {"name":"NRG Stadium","city":"Houston","country":"USA","capacity":72000},
+  {"name":"Levi's Stadium","city":"Santa Clara","country":"USA","capacity":71000},
+  {"name":"SoFi Stadium","city":"Inglewood","country":"USA","capacity":70000},
+  {"name":"Lincoln Financial Field","city":"Philadelphia","country":"USA","capacity":69000},
+  {"name":"Lumen Field","city":"Seattle","country":"USA","capacity":69000},
+  {"name":"Gillette Stadium","city":"Foxborough","country":"USA","capacity":65000},
+  {"name":"Hard Rock Stadium","city":"Miami Gardens","country":"USA","capacity":65000},
+  {"name":"BC Place","city":"Vancouver","country":"Canada","capacity":54000},
+  {"name":"BMO Field","city":"Toronto","country":"Canada","capacity":45000},
+  {"name":"Estadio Azteca","city":"Mexico City","country":"Mexico","capacity":83000},
+  {"name":"Estadio BBVA","city":"Guadalupe","country":"Mexico","capacity":53500},
+  {"name":"Estadio Akron","city":"Zapopan","country":"Mexico","capacity":48000}
+]

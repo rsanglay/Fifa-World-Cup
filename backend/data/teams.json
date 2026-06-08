@@ -1,0 +1,61 @@
+[
+  {"code":"MEX","name":"Mexico","confederation":"CONCACAF","group":"A","fifa_ranking":17,"pot":1,"elo":1800,"titles":0},
+  {"code":"ZAF","name":"South Africa","confederation":"CAF","group":"A","fifa_ranking":56,"pot":3,"elo":1640,"titles":0},
+  {"code":"KOR","name":"South Korea","confederation":"AFC","group":"A","fifa_ranking":23,"pot":2,"elo":1790,"titles":0},
+  {"code":"CZE","name":"Czechia","confederation":"UEFA","group":"A","fifa_ranking":43,"pot":3,"elo":1730,"titles":0},
+
+  {"code":"CAN","name":"Canada","confederation":"CONCACAF","group":"B","fifa_ranking":26,"pot":1,"elo":1750,"titles":0},
+  {"code":"BIH","name":"Bosnia-Herzegovina","confederation":"UEFA","group":"B","fifa_ranking":74,"pot":4,"elo":1670,"titles":0},
+  {"code":"QAT","name":"Qatar","confederation":"AFC","group":"B","fifa_ranking":52,"pot":3,"elo":1650,"titles":0},
+  {"code":"SUI","name":"Switzerland","confederation":"UEFA","group":"B","fifa_ranking":20,"pot":2,"elo":1830,"titles":0},
+
+  {"code":"BRA","name":"Brazil","confederation":"CONMEBOL","group":"C","fifa_ranking":5,"pot":1,"elo":2010,"titles":5},
+  {"code":"MAR","name":"Morocco","confederation":"CAF","group":"C","fifa_ranking":12,"pot":2,"elo":1840,"titles":0},
+  {"code":"HAI","name":"Haiti","confederation":"CONCACAF","group":"C","fifa_ranking":83,"pot":4,"elo":1530,"titles":0},
+  {"code":"SCO","name":"Scotland","confederation":"UEFA","group":"C","fifa_ranking":39,"pot":3,"elo":1740,"titles":0},
+
+  {"code":"USA","name":"United States","confederation":"CONCACAF","group":"D","fifa_ranking":16,"pot":1,"elo":1800,"titles":0},
+  {"code":"PAR","name":"Paraguay","confederation":"CONMEBOL","group":"D","fifa_ranking":40,"pot":3,"elo":1720,"titles":0},
+  {"code":"AUS","name":"Australia","confederation":"AFC","group":"D","fifa_ranking":24,"pot":2,"elo":1740,"titles":0},
+  {"code":"TUR","name":"Türkiye","confederation":"UEFA","group":"D","fifa_ranking":27,"pot":2,"elo":1810,"titles":0},
+
+  {"code":"GER","name":"Germany","confederation":"UEFA","group":"E","fifa_ranking":9,"pot":1,"elo":1930,"titles":4},
+  {"code":"CUW","name":"Curaçao","confederation":"CONCACAF","group":"E","fifa_ranking":82,"pot":4,"elo":1500,"titles":0},
+  {"code":"CIV","name":"Ivory Coast","confederation":"CAF","group":"E","fifa_ranking":42,"pot":3,"elo":1720,"titles":0},
+  {"code":"ECU","name":"Ecuador","confederation":"CONMEBOL","group":"E","fifa_ranking":23,"pot":2,"elo":1780,"titles":0},
+
+  {"code":"NED","name":"Netherlands","confederation":"UEFA","group":"F","fifa_ranking":7,"pot":1,"elo":1940,"titles":0},
+  {"code":"JPN","name":"Japan","confederation":"AFC","group":"F","fifa_ranking":18,"pot":2,"elo":1830,"titles":0},
+  {"code":"SWE","name":"Sweden","confederation":"UEFA","group":"F","fifa_ranking":36,"pot":3,"elo":1730,"titles":0},
+  {"code":"TUN","name":"Tunisia","confederation":"CAF","group":"F","fifa_ranking":49,"pot":4,"elo":1650,"titles":0},
+
+  {"code":"BEL","name":"Belgium","confederation":"UEFA","group":"G","fifa_ranking":8,"pot":1,"elo":1910,"titles":0},
+  {"code":"EGY","name":"Egypt","confederation":"CAF","group":"G","fifa_ranking":33,"pot":3,"elo":1700,"titles":0},
+  {"code":"IRN","name":"Iran","confederation":"AFC","group":"G","fifa_ranking":21,"pot":2,"elo":1720,"titles":0},
+  {"code":"NZL","name":"New Zealand","confederation":"OFC","group":"G","fifa_ranking":86,"pot":4,"elo":1490,"titles":0},
+
+  {"code":"ESP","name":"Spain","confederation":"UEFA","group":"H","fifa_ranking":2,"pot":1,"elo":2080,"titles":1},
+  {"code":"CPV","name":"Cape Verde","confederation":"CAF","group":"H","fifa_ranking":70,"pot":4,"elo":1580,"titles":0},
+  {"code":"KSA","name":"Saudi Arabia","confederation":"AFC","group":"H","fifa_ranking":58,"pot":3,"elo":1630,"titles":0},
+  {"code":"URU","name":"Uruguay","confederation":"CONMEBOL","group":"H","fifa_ranking":15,"pot":2,"elo":1880,"titles":2},
+
+  {"code":"FRA","name":"France","confederation":"UEFA","group":"I","fifa_ranking":3,"pot":1,"elo":2030,"titles":2},
+  {"code":"SEN","name":"Senegal","confederation":"CAF","group":"I","fifa_ranking":19,"pot":2,"elo":1800,"titles":0},
+  {"code":"IRQ","name":"Iraq","confederation":"AFC","group":"I","fifa_ranking":57,"pot":4,"elo":1610,"titles":0},
+  {"code":"NOR","name":"Norway","confederation":"UEFA","group":"I","fifa_ranking":29,"pot":3,"elo":1810,"titles":0},
+
+  {"code":"ARG","name":"Argentina","confederation":"CONMEBOL","group":"J","fifa_ranking":1,"pot":1,"elo":2120,"titles":3},
+  {"code":"ALG","name":"Algeria","confederation":"CAF","group":"J","fifa_ranking":37,"pot":3,"elo":1720,"titles":0},
+  {"code":"AUT","name":"Austria","confederation":"UEFA","group":"J","fifa_ranking":22,"pot":2,"elo":1790,"titles":0},
+  {"code":"JOR","name":"Jordan","confederation":"AFC","group":"J","fifa_ranking":62,"pot":4,"elo":1600,"titles":0},
+
+  {"code":"POR","name":"Portugal","confederation":"UEFA","group":"K","fifa_ranking":6,"pot":1,"elo":2000,"titles":0},
+  {"code":"COD","name":"Congo DR","confederation":"CAF","group":"K","fifa_ranking":60,"pot":3,"elo":1660,"titles":0},
+  {"code":"UZB","name":"Uzbekistan","confederation":"AFC","group":"K","fifa_ranking":54,"pot":4,"elo":1640,"titles":0},
+  {"code":"COL","name":"Colombia","confederation":"CONMEBOL","group":"K","fifa_ranking":14,"pot":2,"elo":1870,"titles":0},
+
+  {"code":"ENG","name":"England","confederation":"UEFA","group":"L","fifa_ranking":4,"pot":1,"elo":2000,"titles":1},
+  {"code":"CRO","name":"Croatia","confederation":"UEFA","group":"L","fifa_ranking":10,"pot":2,"elo":1890,"titles":0},
+  {"code":"GHA","name":"Ghana","confederation":"CAF","group":"L","fifa_ranking":73,"pot":3,"elo":1620,"titles":0},
+  {"code":"PAN","name":"Panama","confederation":"CONCACAF","group":"L","fifa_ranking":31,"pot":4,"elo":1680,"titles":0}
+]

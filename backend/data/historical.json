@@ -1,0 +1,36 @@
+{
+  "champions": [
+    {"year":1930,"winner":"Uruguay","runner_up":"Argentina","host":"Uruguay"},
+    {"year":1934,"winner":"Italy","runner_up":"Czechoslovakia","host":"Italy"},
+    {"year":1938,"winner":"Italy","runner_up":"Hungary","host":"France"},
+    {"year":1950,"winner":"Uruguay","runner_up":"Brazil","host":"Brazil"},
+    {"year":1954,"winner":"West Germany","runner_up":"Hungary","host":"Switzerland"},
+    {"year":1958,"winner":"Brazil","runner_up":"Sweden","host":"Sweden"},
+    {"year":1962,"winner":"Brazil","runner_up":"Czechoslovakia","host":"Chile"},
+    {"year":1966,"winner":"England","runner_up":"West Germany","host":"England"},
+    {"year":1970,"winner":"Brazil","runner_up":"Italy","host":"Mexico"},
+    {"year":1974,"winner":"West Germany","runner_up":"Netherlands","host":"West Germany"},
+    {"year":1978,"winner":"Argentina","runner_up":"Netherlands","host":"Argentina"},
+    {"year":1982,"winner":"Italy","runner_up":"West Germany","host":"Spain"},
+    {"year":1986,"winner":"Argentina","runner_up":"West Germany","host":"Mexico"},
+    {"year":1990,"winner":"West Germany","runner_up":"Argentina","host":"Italy"},
+    {"year":1994,"winner":"Brazil","runner_up":"Italy","host":"United States"},
+    {"year":1998,"winner":"France","runner_up":"Brazil","host":"France"},
+    {"year":2002,"winner":"Brazil","runner_up":"Germany","host":"South Korea/Japan"},
+    {"year":2006,"winner":"Italy","runner_up":"France","host":"Germany"},
+    {"year":2010,"winner":"Spain","runner_up":"Netherlands","host":"South Africa"},
+    {"year":2014,"winner":"Germany","runner_up":"Argentina","host":"Brazil"},
+    {"year":2018,"winner":"France","runner_up":"Croatia","host":"Russia"},
+    {"year":2022,"winner":"Argentina","runner_up":"France","host":"Qatar"}
+  ],
+  "most_titles": [
+    {"team":"Brazil","titles":5},
+    {"team":"Germany","titles":4},
+    {"team":"Italy","titles":4},
+    {"team":"Argentina","titles":3},
+    {"team":"France","titles":2},
+    {"team":"Uruguay","titles":2},
+    {"team":"England","titles":1},
+    {"team":"Spain","titles":1}
+  ]
+}
