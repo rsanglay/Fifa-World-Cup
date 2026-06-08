@@ -6,6 +6,7 @@ import LineupPicker from "../components/LineupPicker";
 import CinematicSim from "../components/CinematicSim";
 import Awards from "../components/Awards";
 import PlayerPhoto from "../components/PlayerPhoto";
+import MatchModal, { MatchData } from "../components/MatchModal";
 import type { GroupRow, LineupResult, OddsRow, SimResult, Team, TeamDetail } from "../types";
 
 type Mode = "menu" | "full" | "manage";
@@ -62,6 +63,7 @@ function FullSim({ onBack }: { onBack: () => void }) {
   const [loading, setLoading] = useState(false);
   const [watching, setWatching] = useState(true);
   const [tab, setTab] = useState<"awards" | "bracket" | "groups">("awards");
+  const [openMatch, setOpenMatch] = useState<MatchData | null>(null);
 
   const run = (watch: boolean) => {
     setLoading(true);
@@ -114,9 +116,18 @@ function FullSim({ onBack }: { onBack: () => void }) {
             </button>
           </div>
           {tab === "awards" && result.awards && <Awards awards={result.awards} />}
-          {tab === "bracket" && <Bracket knockout={result.knockout} names={result.team_names} />}
+          {tab === "bracket" && (
+            <>
+              <p className="mb-2 text-xs text-white/40">Tap any match to see scorers and line-ups.</p>
+              <Bracket knockout={result.knockout} names={result.team_names} onOpen={setOpenMatch} />
+            </>
+          )}
           {tab === "groups" && <GroupTables groups={result.groups} names={result.team_names} />}
         </>
+      )}
+
+      {openMatch && (
+        <MatchModal match={openMatch} names={result?.team_names || {}} onClose={() => setOpenMatch(null)} />
       )}
     </div>
   );

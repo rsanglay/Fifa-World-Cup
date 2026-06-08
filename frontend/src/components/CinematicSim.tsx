@@ -1,21 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { flag } from "../api/client";
-import type { GroupRow, KnockoutMatch, SimResult } from "../types";
+import type { GroupRow, KnockoutMatch, MatchEvent, SimResult } from "../types";
 import Bracket from "./Bracket";
 import Awards from "./Awards";
+import LiveMatch from "./LiveMatch";
+import MatchModal, { MatchData } from "./MatchModal";
 
 type GMatch = SimResult["group_matches"][number];
 
 interface Step {
-  kind: "group" | "ko" | "awards" | "champion";
+  kind: "group" | "ko" | "final" | "awards" | "champion";
   label: string;
-  date?: string;
   matches?: (GMatch | KnockoutMatch)[];
   round?: string;
 }
 
-/* Cumulative group tables from all group matches up to (and incl.) a date. */
 function standingsUpTo(matches: GMatch[], upToIdx: number): Record<string, GroupRow[]> {
   const rec: Record<string, Record<string, GroupRow>> = {};
   matches.slice(0, upToIdx).forEach((m) => {
@@ -46,28 +46,25 @@ export default function CinematicSim({
   onFinish: () => void;
 }) {
   const names = result.team_names;
+  const [openMatch, setOpenMatch] = useState<MatchData | null>(null);
 
-  // Build the timeline of steps.
   const steps = useMemo<Step[]>(() => {
     const s: Step[] = [];
-    // Group stage by date.
     const byDate: Record<string, GMatch[]> = {};
-    result.group_matches.forEach((m) => {
-      (byDate[m.date || "?"] ||= []).push(m);
-    });
-    const dates = Object.keys(byDate).sort();
-    dates.forEach((d, i) =>
-      s.push({ kind: "group", label: `Matchday — ${fmtDate(d)}`, date: d, matches: byDate[d], round: `g${i}` })
+    result.group_matches.forEach((m) => { (byDate[m.date || "?"] ||= []).push(m); });
+    Object.keys(byDate).sort().forEach((d) =>
+      s.push({ kind: "group", label: `Matchday — ${fmtDate(d)}`, matches: byDate[d] })
     );
-    // Knockout by round.
     const rounds: [string, string][] = [
       ["R32", "Round of 32"], ["R16", "Round of 16"], ["QF", "Quarter-finals"],
-      ["SF", "Semi-finals"], ["3P", "Third-place play-off"], ["F", "Final"],
+      ["SF", "Semi-finals"], ["3P", "Third-place play-off"],
     ];
     rounds.forEach(([r, label]) => {
       const ms = result.knockout.filter((k) => k.round === r);
       if (ms.length) s.push({ kind: "ko", label, matches: ms, round: r });
     });
+    const final = result.knockout.find((k) => k.round === "F");
+    if (final) s.push({ kind: "final", label: "The Final", matches: [final] });
     if (result.awards) s.push({ kind: "awards", label: "The Awards" });
     s.push({ kind: "champion", label: "Champions" });
     return s;
@@ -78,7 +75,6 @@ export default function CinematicSim({
   const timer = useRef<number | null>(null);
   const step = steps[idx];
 
-  // Index into group_matches for cumulative standings at this step.
   const cumulativeIdx = useMemo(() => {
     if (step?.kind !== "group") return 0;
     let count = 0;
@@ -90,33 +86,24 @@ export default function CinematicSim({
 
   useEffect(() => {
     if (timer.current) window.clearTimeout(timer.current);
-    if (playing && idx < steps.length - 1) {
-      const dwell = step.kind === "awards" || step.kind === "ko" ? 4200 : 3200;
+    if (playing && idx < steps.length - 1 && !openMatch) {
+      const dwell =
+        step.kind === "final" ? 9000 :
+        step.kind === "awards" || step.kind === "ko" ? 4200 : 3200;
       timer.current = window.setTimeout(() => setIdx((i) => i + 1), dwell);
     }
-    return () => {
-      if (timer.current) window.clearTimeout(timer.current);
-    };
-  }, [idx, playing, steps.length, step]);
+    return () => { if (timer.current) window.clearTimeout(timer.current); };
+  }, [idx, playing, steps.length, step, openMatch]);
 
   const progress = ((idx + 1) / steps.length) * 100;
 
   return (
     <div>
-      {/* Controls */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <button onClick={() => setIdx((i) => Math.max(0, i - 1))} className="btn-ghost text-sm" disabled={idx === 0}>
-          ‹ Prev
-        </button>
-        <button onClick={() => setPlaying((p) => !p)} className="btn-primary text-sm">
-          {playing ? "⏸ Pause" : "▶ Play"}
-        </button>
-        <button onClick={() => setIdx((i) => Math.min(steps.length - 1, i + 1))} className="btn-ghost text-sm" disabled={idx === steps.length - 1}>
-          Next ›
-        </button>
-        <button onClick={onFinish} className="btn-ghost text-sm">
-          ⏭ Skip to results
-        </button>
+        <button onClick={() => setIdx((i) => Math.max(0, i - 1))} className="btn-ghost text-sm" disabled={idx === 0}>‹ Prev</button>
+        <button onClick={() => setPlaying((p) => !p)} className="btn-primary text-sm">{playing ? "⏸ Pause" : "▶ Play"}</button>
+        <button onClick={() => setIdx((i) => Math.min(steps.length - 1, i + 1))} className="btn-ghost text-sm" disabled={idx === steps.length - 1}>Next ›</button>
+        <button onClick={onFinish} className="btn-ghost text-sm">⏭ Skip to results</button>
         <div className="ml-auto text-sm text-white/50">{step?.label}</div>
       </div>
       <div className="mb-5 h-1.5 w-full overflow-hidden rounded-full bg-ink">
@@ -124,71 +111,95 @@ export default function CinematicSim({
       </div>
 
       <AnimatePresence mode="wait">
-        <motion.div
-          key={idx}
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.35 }}
-        >
+        <motion.div key={idx} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.35 }}>
           {step.kind === "group" && (
-            <GroupStep
-              matches={step.matches as GMatch[]}
-              standings={standingsUpTo(result.group_matches, cumulativeIdx)}
-              names={names}
-            />
+            <GroupStep matches={step.matches as GMatch[]} standings={standingsUpTo(result.group_matches, cumulativeIdx)} names={names} onOpen={setOpenMatch} />
           )}
           {step.kind === "ko" && (
-            <KnockoutStep matches={step.matches as KnockoutMatch[]} label={step.label} names={names} />
+            <KnockoutStep matches={step.matches as KnockoutMatch[]} label={step.label} names={names} onOpen={setOpenMatch} />
+          )}
+          {step.kind === "final" && (
+            <div>
+              <h3 className="mb-3 text-center font-display text-4xl tracking-wide text-gold">THE FINAL</h3>
+              <LiveMatch match={step.matches![0] as KnockoutMatch} names={names} />
+            </div>
           )}
           {step.kind === "awards" && result.awards && <Awards awards={result.awards} />}
           {step.kind === "champion" && <ChampionStep result={result} />}
         </motion.div>
       </AnimatePresence>
+
+      {openMatch && <MatchModal match={openMatch} names={names} onClose={() => setOpenMatch(null)} />}
     </div>
   );
 }
 
+function scorerLine(events: MatchEvent[] | undefined, team: string): string {
+  if (!events) return "";
+  const mine = events.filter((e) => e.team === team);
+  if (!mine.length) return "";
+  return mine.map((e) => `${e.scorer} ${e.minute}'`).join(", ");
+}
+
 function LiveScore({
-  home, away, hg, ag, names, pens, hp, ap, delay = 0,
+  match, names, onOpen, delay = 0,
 }: {
-  home: string; away: string; hg: number; ag: number;
-  names: Record<string, string>; pens?: boolean; hp?: number | null; ap?: number | null; delay?: number;
+  match: GMatch | KnockoutMatch;
+  names: Record<string, string>;
+  onOpen: (m: MatchData) => void;
+  delay?: number;
 }) {
+  const home = (match as any).home || "";
+  const away = (match as any).away || "";
+  const hg = (match as any).home_goals ?? 0;
+  const ag = (match as any).away_goals ?? 0;
+  const pens = (match as any).penalties;
+  const hp = (match as any).home_pens;
+  const ap = (match as any).away_pens;
   const hw = hg > ag || (pens && (hp ?? 0) > (ap ?? 0));
+  const events = (match as any).events as MatchEvent[] | undefined;
+
   return (
-    <motion.div
+    <motion.button
       initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ delay }}
-      className="card flex items-center gap-2 p-3"
+      onClick={() => onOpen(match)}
+      className="card w-full p-3 text-left transition hover:border-gold/40"
     >
-      <div className={`flex flex-1 items-center justify-end gap-2 text-right ${hw ? "font-bold" : "text-white/60"}`}>
-        <span className="truncate text-sm">{names[home] || home}</span>
-        <span className="text-2xl">{flag(home)}</span>
-      </div>
-      <div className="flex items-center gap-1 rounded-lg bg-ink px-3 py-1 font-display text-2xl tabular-nums">
-        <span>{hg}</span><span className="text-white/30">:</span><span>{ag}</span>
-      </div>
-      <div className={`flex flex-1 items-center gap-2 ${!hw && hg !== ag ? "font-bold" : "text-white/60"}`}>
-        <span className="text-2xl">{flag(away)}</span>
-        <span className="truncate text-sm">{names[away] || away}</span>
+      <div className="flex items-center gap-2">
+        <div className={`flex flex-1 items-center justify-end gap-2 text-right ${hw ? "font-bold" : "text-white/60"}`}>
+          <span className="truncate text-sm">{names[home] || home}</span>
+          <span className="text-2xl">{flag(home)}</span>
+        </div>
+        <div className="flex items-center gap-1 rounded-lg bg-ink px-3 py-1 font-display text-2xl tabular-nums">
+          <span>{hg}</span><span className="text-white/30">:</span><span>{ag}</span>
+        </div>
+        <div className={`flex flex-1 items-center gap-2 ${!hw && hg !== ag ? "font-bold" : "text-white/60"}`}>
+          <span className="text-2xl">{flag(away)}</span>
+          <span className="truncate text-sm">{names[away] || away}</span>
+        </div>
       </div>
       {pens && (
-        <span className="absolute -mt-10 ml-2 rounded bg-gold/20 px-1 text-[9px] text-gold">
-          pens {hp}-{ap}
-        </span>
+        <div className="mt-1 text-center text-[10px] text-gold">penalties {hp}–{ap}</div>
       )}
-    </motion.div>
+      {events && events.length > 0 && (
+        <div className="mt-1 flex justify-between gap-2 text-[10px] text-white/40">
+          <span className="flex-1 truncate text-right">⚽ {scorerLine(events, home)}</span>
+          <span className="flex-1 truncate">{scorerLine(events, away)} ⚽</span>
+        </div>
+      )}
+    </motion.button>
   );
 }
 
 function GroupStep({
-  matches, standings, names,
+  matches, standings, names, onOpen,
 }: {
   matches: GMatch[];
   standings: Record<string, GroupRow[]>;
   names: Record<string, string>;
+  onOpen: (m: MatchData) => void;
 }) {
   const groupsToday = Array.from(new Set(matches.map((m) => m.group))).sort();
   return (
@@ -197,7 +208,7 @@ function GroupStep({
         <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-gold">Results</h3>
         <div className="space-y-2">
           {matches.map((m, i) => (
-            <LiveScore key={m.match_no} home={m.home} away={m.away} hg={m.home_goals} ag={m.away_goals} names={names} delay={i * 0.25} />
+            <LiveScore key={m.match_no} match={m} names={names} onOpen={onOpen} delay={i * 0.25} />
           ))}
         </div>
       </div>
@@ -228,24 +239,19 @@ function GroupStep({
 }
 
 function KnockoutStep({
-  matches, label, names,
+  matches, label, names, onOpen,
 }: {
   matches: KnockoutMatch[];
   label: string;
   names: Record<string, string>;
+  onOpen: (m: MatchData) => void;
 }) {
   return (
     <div>
       <h3 className="mb-3 text-center font-display text-3xl tracking-wide text-gold">{label}</h3>
       <div className="mx-auto grid max-w-3xl gap-2">
         {matches.map((m, i) => (
-          <LiveScore
-            key={m.match_no}
-            home={m.home || ""} away={m.away || ""}
-            hg={m.home_goals ?? 0} ag={m.away_goals ?? 0}
-            names={names} pens={m.penalties} hp={m.home_pens} ap={m.away_pens}
-            delay={i * 0.2}
-          />
+          <LiveScore key={m.match_no} match={m} names={names} onOpen={onOpen} delay={i * 0.2} />
         ))}
       </div>
     </div>
@@ -254,21 +260,10 @@ function KnockoutStep({
 
 function ChampionStep({ result }: { result: SimResult }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className="card relative overflow-hidden p-10 text-center"
-    >
+    <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="card relative overflow-hidden p-10 text-center">
       <div className="absolute inset-0 bg-gradient-to-b from-gold/25 to-transparent" />
       <div className="relative">
-        <motion.div
-          initial={{ y: -30, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ type: "spring", delay: 0.2 }}
-          className="text-7xl"
-        >
-          🏆
-        </motion.div>
+        <motion.div initial={{ y: -30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ type: "spring", delay: 0.2 }} className="text-7xl">🏆</motion.div>
         <div className="mt-2 text-xs uppercase tracking-[0.3em] text-gold">World Champions 2026</div>
         <div className="mt-3 text-8xl">{flag(result.champion)}</div>
         <div className="mt-2 font-display text-6xl tracking-wide">{result.team_names[result.champion]}</div>

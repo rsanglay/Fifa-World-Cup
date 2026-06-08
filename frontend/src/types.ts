@@ -25,6 +25,29 @@ export interface Player {
   photo_url?: string;
 }
 
+export interface MatchEvent {
+  minute: number;
+  team: string;
+  scorer: string;
+  scorer_id: string;
+  position: string;
+  assist: string | null;
+}
+
+export interface LineupPlayer {
+  id: string;
+  name: string;
+  position: string;
+  number: number;
+  rating: number;
+  photo_url?: string;
+}
+
+export interface MatchLineups {
+  home: LineupPlayer[];
+  away: LineupPlayer[];
+}
+
 export interface AwardRow {
   id: string;
   name: string;
@@ -128,6 +151,8 @@ export interface KnockoutMatch {
   venue?: string;
   city?: string;
   date?: string;
+  events?: MatchEvent[];
+  lineups?: MatchLineups | null;
 }
 
 export interface SimResult {
@@ -142,6 +167,8 @@ export interface SimResult {
     date?: string;
     city?: string;
     venue?: string;
+    events?: MatchEvent[];
+    lineups?: MatchLineups | null;
   }[];
   knockout: KnockoutMatch[];
   champion: string;
@@ -178,4 +205,5 @@ export interface JourneyMatch {
   home_pens?: number;
   away_pens?: number;
   winner?: string;
+  events?: MatchEvent[];
 }

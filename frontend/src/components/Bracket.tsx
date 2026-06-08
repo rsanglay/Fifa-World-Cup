@@ -40,9 +40,11 @@ function Side({
 export default function Bracket({
   knockout,
   names,
+  onOpen,
 }: {
   knockout: KnockoutMatch[];
   names: Record<string, string>;
+  onOpen?: (m: KnockoutMatch) => void;
 }) {
   const byRound = (r: string) =>
     knockout.filter((m) => m.round === r).sort((a, b) => a.match_no - b.match_no);
@@ -59,7 +61,11 @@ export default function Bracket({
               </div>
               <div className="flex flex-1 flex-col justify-around gap-3">
                 {matches.map((m) => (
-                  <div key={m.match_no} className="card overflow-hidden">
+                  <div
+                    key={m.match_no}
+                    onClick={() => onOpen && m.home && onOpen(m)}
+                    className={`card overflow-hidden ${onOpen && m.home ? "cursor-pointer transition hover:border-gold/40" : ""}`}
+                  >
                     <Side
                       code={m.home}
                       goals={m.home_goals}
