@@ -14,6 +14,11 @@ import type { GroupRow, LineupResult, OddsRow, SimResult, Team, TeamDetail } fro
 
 type Mode = "menu" | "full" | "manage";
 
+// Seed captured once at page load. Only a shared deep-link (page opened with
+// ?seed=) skips the cinematic; consumed after the first Full-Sim mount.
+const INITIAL_SEED = new URLSearchParams(window.location.search).get("seed");
+let initialSeedConsumed = false;
+
 export default function Simulator() {
   const [mode, setMode] = useState<Mode>("menu");
   return (
@@ -100,8 +105,13 @@ function FullSim({ onBack }: { onBack: () => void }) {
     });
   };
   useEffect(() => {
-    const q = new URLSearchParams(window.location.search).get("seed");
-    run(!q, q ? Number(q) : undefined); // reproduced link -> skip the cinematic, show result
+    // Only a *shared link* (seed present at first page load) skips the cinematic
+    // to show that exact result. Entering Full Sim normally — or "New
+    // playthrough" — always plays the cinematic. Without this, run() writing
+    // ?seed to the URL made every re-entry skip straight to the end.
+    const deepLink = INITIAL_SEED !== null && !initialSeedConsumed;
+    initialSeedConsumed = true;
+    run(!deepLink, deepLink ? Number(INITIAL_SEED) : undefined);
   }, []);
 
   return (
