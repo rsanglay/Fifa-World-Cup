@@ -6,6 +6,8 @@ import Bracket from "./Bracket";
 import Awards from "./Awards";
 import LiveMatch from "./LiveMatch";
 import MatchModal, { MatchData } from "./MatchModal";
+import Confetti from "./Confetti";
+import { sound } from "../lib/sound";
 
 type GMatch = SimResult["group_matches"][number];
 
@@ -259,8 +261,12 @@ function KnockoutStep({
 }
 
 function ChampionStep({ result }: { result: SimResult }) {
+  useEffect(() => {
+    sound.fanfare();
+  }, []);
   return (
     <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="card relative overflow-hidden p-10 text-center">
+      <Confetti />
       <div className="absolute inset-0 bg-gradient-to-b from-gold/25 to-transparent" />
       <div className="relative">
         <motion.div initial={{ y: -30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ type: "spring", delay: 0.2 }} className="text-7xl">🏆</motion.div>

@@ -7,6 +7,9 @@ import CinematicSim from "../components/CinematicSim";
 import Awards from "../components/Awards";
 import PlayerPhoto from "../components/PlayerPhoto";
 import MatchModal, { MatchData } from "../components/MatchModal";
+import Confetti from "../components/Confetti";
+import ShareButton from "../components/ShareButton";
+import { sound, isMuted, setMuted } from "../lib/sound";
 import type { GroupRow, LineupResult, OddsRow, SimResult, Team, TeamDetail } from "../types";
 
 type Mode = "menu" | "full" | "manage";
@@ -15,7 +18,10 @@ export default function Simulator() {
   const [mode, setMode] = useState<Mode>("menu");
   return (
     <div>
-      <h1 className="mb-1 font-display text-4xl tracking-wide">TOURNAMENT SIMULATOR</h1>
+      <div className="mb-1 flex items-start justify-between gap-3">
+        <h1 className="font-display text-4xl tracking-wide">TOURNAMENT SIMULATOR</h1>
+        <SoundToggle />
+      </div>
       <p className="mb-6 text-white/60">
         Run the entire World Cup, or take control of one nation and chase the trophy.
       </p>
@@ -23,6 +29,19 @@ export default function Simulator() {
       {mode === "full" && <FullSim onBack={() => setMode("menu")} />}
       {mode === "manage" && <ManageSim onBack={() => setMode("menu")} />}
     </div>
+  );
+}
+
+function SoundToggle() {
+  const [muted, setM] = useState(isMuted());
+  return (
+    <button
+      onClick={() => { setMuted(!muted); setM(!muted); }}
+      className="btn-ghost text-sm"
+      title={muted ? "Sound off" : "Sound on"}
+    >
+      {muted ? "🔇" : "🔊"}
+    </button>
   );
 }
 
@@ -64,17 +83,26 @@ function FullSim({ onBack }: { onBack: () => void }) {
   const [watching, setWatching] = useState(true);
   const [tab, setTab] = useState<"awards" | "bracket" | "groups">("awards");
   const [openMatch, setOpenMatch] = useState<MatchData | null>(null);
+  const [seed, setSeed] = useState<number>(0);
 
-  const run = (watch: boolean) => {
+  const run = (watch: boolean, useSeed?: number) => {
+    const s = useSeed ?? Math.floor(Math.random() * 1_000_000_000);
+    setSeed(s);
+    const url = new URL(window.location.href);
+    url.searchParams.set("seed", String(s));
+    window.history.replaceState({}, "", url);
     setLoading(true);
     setResult(null);
-    api.simulateTournament().then((r) => {
+    api.simulateTournament(s).then((r) => {
       setResult(r);
       setWatching(watch);
       setLoading(false);
     });
   };
-  useEffect(() => run(true), []);
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("seed");
+    run(!q, q ? Number(q) : undefined); // reproduced link -> skip the cinematic, show result
+  }, []);
 
   return (
     <div>
@@ -98,7 +126,7 @@ function FullSim({ onBack }: { onBack: () => void }) {
 
       {result && !watching && (
         <>
-          <ChampionReveal result={result} />
+          <ChampionReveal result={result} seed={seed} />
           <div className="mb-3 mt-6 flex flex-wrap gap-2">
             {(["awards", "bracket", "groups"] as const).map((t) => (
               <button
@@ -133,8 +161,15 @@ function FullSim({ onBack }: { onBack: () => void }) {
   );
 }
 
-function ChampionReveal({ result }: { result: SimResult }) {
+function ChampionReveal({ result, seed }: { result: SimResult; seed?: number }) {
   const names = result.team_names;
+  useEffect(() => {
+    sound.fanfare();
+  }, [result.champion]);
+
+  const url = new URL(window.location.href);
+  if (seed != null) url.searchParams.set("seed", String(seed));
+
   return (
     <motion.div
       key={result.champion}
@@ -142,9 +177,11 @@ function ChampionReveal({ result }: { result: SimResult }) {
       animate={{ opacity: 1, scale: 1 }}
       className="card relative overflow-hidden p-8 text-center"
     >
+      <Confetti />
       <div className="absolute inset-0 bg-gradient-to-b from-gold/20 to-transparent" />
       <div className="relative">
-        <div className="text-xs uppercase tracking-[0.3em] text-gold">World Champions</div>
+        <div className="text-5xl">🏆</div>
+        <div className="mt-1 text-xs uppercase tracking-[0.3em] text-gold">World Champions</div>
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -157,12 +194,23 @@ function ChampionReveal({ result }: { result: SimResult }) {
           {names[result.champion]}
         </div>
         <div className="mt-4 flex justify-center gap-8 text-sm text-white/60">
-          <div>
-            🥈 Runner-up: <span className="text-white">{names[result.runner_up]}</span>
-          </div>
-          <div>
-            🥉 Third: <span className="text-white">{names[result.third]}</span>
-          </div>
+          <div>🥈 Runner-up: <span className="text-white">{names[result.runner_up]}</span></div>
+          <div>🥉 Third: <span className="text-white">{names[result.third]}</span></div>
+        </div>
+        <div className="mt-5">
+          <ShareButton
+            info={{
+              headline: "WORLD CHAMPIONS",
+              championCode: result.champion,
+              championName: names[result.champion] || result.champion,
+              lines: [
+                `Runner-up: ${names[result.runner_up]}`,
+                `Third: ${names[result.third]}`,
+              ],
+              url: url.toString(),
+              shareText: `🏆 ${names[result.champion]} won my World Cup 2026 simulation!`,
+            }}
+          />
         </div>
       </div>
     </motion.div>
@@ -405,8 +453,13 @@ function ManageResult({
   else if (reachedFinal) verdict = "🥈 Runners-up — so close!";
   else if (exit) verdict = `Knocked out in the ${roundName(exit.round)}`;
 
+  useEffect(() => {
+    if (won) sound.fanfare();
+  }, [won]);
+
   return (
     <div className="space-y-5">
+      {won && <Confetti />}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -430,7 +483,24 @@ function ManageResult({
             <Pill label="Reach last 16" val={odds.p_round_of_16} />
           </div>
         )}
-        <button onClick={onReplay} className="btn-ghost mt-5 text-sm">
+        <div className="mt-5">
+          <ShareButton
+            info={{
+              headline: `MANAGED ${names[team]?.toUpperCase() || team}`,
+              championCode: won ? team : result.champion,
+              championName: won ? names[team] : names[result.champion],
+              lines: [
+                `${names[team]}: ${verdict.replace(/^[^A-Za-z]+/, "")}`,
+                won ? "" : `Winner: ${names[result.champion]}`,
+              ].filter(Boolean),
+              url: window.location.origin + "/simulator",
+              shareText: won
+                ? `🏆 I managed ${names[team]} to World Cup glory!`
+                : `I managed ${names[team]} at the World Cup 2026 — ${verdict.replace(/^[^A-Za-z]+/, "").toLowerCase()}.`,
+            }}
+          />
+        </div>
+        <button onClick={onReplay} className="btn-ghost mt-3 text-sm">
           ← Change lineup & replay
         </button>
       </motion.div>

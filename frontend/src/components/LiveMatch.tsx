@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { flag } from "../api/client";
+import { sound } from "../lib/sound";
 import type { KnockoutMatch } from "../types";
 
 /* Animated single match: a clock ticks up and goals pop at their minute, then
@@ -36,6 +37,17 @@ export default function LiveMatch({
   const goals = shown.filter((e) => e.type !== "red");
   const hg = goals.filter((e) => e.team === match.home).length;
   const ag = goals.filter((e) => e.team === match.away).length;
+
+  // Play a cue as each event is revealed by the ticking clock.
+  const seen = useRef(0);
+  useEffect(() => {
+    if (shown.length > seen.current) {
+      const latest = shown[shown.length - 1];
+      if (latest?.type === "red") sound.red();
+      else sound.goal();
+    }
+    seen.current = shown.length;
+  }, [shown.length]);
 
   return (
     <div className="card relative overflow-hidden p-6">
