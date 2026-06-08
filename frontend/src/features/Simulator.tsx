@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { api, flag } from "../api/client";
 import Bracket from "../components/Bracket";
 import LineupPicker from "../components/LineupPicker";
+import CinematicSim from "../components/CinematicSim";
+import Awards from "../components/Awards";
+import PlayerPhoto from "../components/PlayerPhoto";
 import type { GroupRow, LineupResult, OddsRow, SimResult, Team, TeamDetail } from "../types";
 
 type Mode = "menu" | "full" | "manage";
@@ -57,17 +60,19 @@ function ModeMenu({ onPick }: { onPick: (m: Mode) => void }) {
 function FullSim({ onBack }: { onBack: () => void }) {
   const [result, setResult] = useState<SimResult | null>(null);
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState<"bracket" | "groups">("bracket");
+  const [watching, setWatching] = useState(true);
+  const [tab, setTab] = useState<"awards" | "bracket" | "groups">("awards");
 
-  const run = () => {
+  const run = (watch: boolean) => {
     setLoading(true);
     setResult(null);
     api.simulateTournament().then((r) => {
       setResult(r);
+      setWatching(watch);
       setLoading(false);
     });
   };
-  useEffect(run, []);
+  useEffect(() => run(true), []);
 
   return (
     <div>
@@ -75,18 +80,25 @@ function FullSim({ onBack }: { onBack: () => void }) {
         <button onClick={onBack} className="btn-ghost text-sm">
           ← Modes
         </button>
-        <button onClick={run} disabled={loading} className="btn-primary text-sm">
-          {loading ? "Simulating…" : "🎲 Re-simulate"}
+        <button onClick={() => run(true)} disabled={loading} className="btn-primary text-sm">
+          {loading ? "Simulating…" : "🎬 New playthrough"}
+        </button>
+        <button onClick={() => run(false)} disabled={loading} className="btn-ghost text-sm">
+          🎲 Instant result
         </button>
       </div>
 
       {loading && <div className="skel h-64" />}
 
-      {result && (
+      {result && watching && (
+        <CinematicSim result={result} onFinish={() => setWatching(false)} />
+      )}
+
+      {result && !watching && (
         <>
           <ChampionReveal result={result} />
-          <div className="mb-3 mt-6 flex gap-2">
-            {(["bracket", "groups"] as const).map((t) => (
+          <div className="mb-3 mt-6 flex flex-wrap gap-2">
+            {(["awards", "bracket", "groups"] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -94,15 +106,16 @@ function FullSim({ onBack }: { onBack: () => void }) {
                   tab === t ? "bg-gold text-ink" : "bg-white/5 text-white/70"
                 }`}
               >
-                {t === "bracket" ? "Knockout Bracket" : "Group Tables"}
+                {t === "awards" ? "🏅 Awards" : t === "bracket" ? "Knockout Bracket" : "Group Tables"}
               </button>
             ))}
+            <button onClick={() => setWatching(true)} className="rounded-lg bg-white/5 px-3 py-1.5 text-sm text-white/70">
+              ▶ Replay cinematic
+            </button>
           </div>
-          {tab === "bracket" ? (
-            <Bracket knockout={result.knockout} names={result.team_names} />
-          ) : (
-            <GroupTables groups={result.groups} names={result.team_names} />
-          )}
+          {tab === "awards" && result.awards && <Awards awards={result.awards} />}
+          {tab === "bracket" && <Bracket knockout={result.knockout} names={result.team_names} />}
+          {tab === "groups" && <GroupTables groups={result.groups} names={result.team_names} />}
         </>
       )}
     </div>
@@ -309,14 +322,16 @@ function ManageSim({ onBack }: { onBack: () => void }) {
             <div className="mb-2 text-sm font-semibold text-white/60">
               Bench ({bench.length})
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {bench.map((p) => (
-                <span
-                  key={p.id}
-                  className="rounded-lg bg-ink/60 px-2 py-1 text-xs text-white/60"
-                >
-                  {p.position} · {p.name} · {p.rating}
-                </span>
+                <div key={p.id} className="flex items-center gap-2 rounded-lg bg-ink/60 px-2 py-1.5">
+                  <PlayerPhoto name={p.name} photoUrl={p.photo_url} position={p.position} size={30} />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-xs">{p.name}</div>
+                    <div className="text-[10px] text-white/30">{p.position} · {p.club}</div>
+                  </div>
+                  <span className="rounded bg-ink px-1 text-xs font-bold text-gold">{p.rating}</span>
+                </div>
               ))}
             </div>
           </div>
@@ -447,6 +462,13 @@ function ManageResult({
           })}
         </div>
       </div>
+
+      {result.awards && (
+        <div>
+          <h3 className="mb-2 font-display text-2xl tracking-wide">TOURNAMENT AWARDS</h3>
+          <Awards awards={result.awards} />
+        </div>
+      )}
     </div>
   );
 }

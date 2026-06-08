@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { Player } from "../types";
+import PlayerPhoto from "./PlayerPhoto";
 
 const FORMATIONS: Record<string, [number, number, number]> = {
   "4-3-3": [4, 3, 3],
@@ -89,15 +90,17 @@ export default function LineupPicker({
                           : "bg-ink/50 hover:bg-white/10"
                       }`}
                     >
-                      <span className="w-6 text-center text-xs text-white/40">
-                        {p.number || ""}
-                      </span>
-                      <span className="flex-1 truncate">{p.name}</span>
-                      {p.club && (
-                        <span className="hidden truncate text-[10px] text-white/30 sm:block">
-                          {p.club}
-                        </span>
-                      )}
+                      <PlayerPhoto name={p.name} photoUrl={p.photo_url} position={p.position} size={34} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1 truncate">
+                          {p.number ? <span className="text-[10px] text-white/40">#{p.number}</span> : null}
+                          <span className="truncate">{p.name}</span>
+                          {p.tier === "star" && <span className="text-[10px]">⭐</span>}
+                        </div>
+                        <div className="truncate text-[10px] text-white/30">
+                          {p.club}{p.age ? ` · ${p.age}y` : ""}{p.caps ? ` · ${p.caps} caps` : ""}
+                        </div>
+                      </div>
                       <span className="w-7 rounded bg-ink px-1 text-center text-xs font-bold tabular-nums text-gold">
                         {p.rating}
                       </span>

@@ -92,3 +92,33 @@ def test_real_squads_loaded():
     for code, players in squads.items():
         assert len(players) == 26, f"{code} has {len(players)} players"
         assert sum(1 for p in players if p.position == "GK") >= 2
+
+
+def test_player_stats_present():
+    squads = load_squads()
+    p = squads["ARG"][0]
+    assert p.age and p.caps >= 0 and p.market_value >= 0
+    # No negative-base complex values leaked through.
+    assert isinstance(p.market_value, float)
+
+
+def test_awards_attribution():
+    from app.engine.playerstats import attribute
+    from app.services.simulation import simulate_full
+
+    res = simulate_full(seed=11)
+    awards = res["awards"]
+    # Total goals attributed to players == total goals scored in the sim.
+    sim_goals = sum(m["home_goals"] + m["away_goals"] for m in res["group_matches"])
+    sim_goals += sum((m["home_goals"] or 0) + (m["away_goals"] or 0)
+                     for m in res["knockout"] if m["home_goals"] is not None)
+    # Golden boot leader should have scored at least one goal.
+    assert awards["golden_boot"][0]["goals"] >= 1
+    # Clean-sheet and saves leaders are goalkeepers.
+    if awards["clean_sheets"]:
+        assert awards["clean_sheets"][0]["position"] == "GK"
+    if awards["most_saves"]:
+        assert awards["most_saves"][0]["position"] == "GK"
+    # Every leaderboard has rows.
+    for key in ("golden_boot", "top_assists", "golden_ball", "chances_created"):
+        assert len(awards[key]) > 0

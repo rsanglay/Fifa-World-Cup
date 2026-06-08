@@ -190,6 +190,7 @@ def play_group(
             "match_no": fx.get("match_no"), "group": group,
             "home": home, "away": away,
             "home_goals": res.home_goals, "away_goals": res.away_goals,
+            "date": date, "city": fx.get("city"), "venue": fx.get("venue"),
         })
     return _sort_group(list(records.values())), log
 

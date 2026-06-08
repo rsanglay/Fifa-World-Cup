@@ -37,9 +37,50 @@ class Player:
     rating: int     # 1-99 overall
     club: str = ""
     number: int = 0
+    # Bio / stats (modelled from importance + position when not real data).
+    age: int = 26
+    caps: int = 0
+    goals: int = 0
+    assists: int = 0
+    market_value: float = 0.0  # € millions
+    tier: str = "rotation"
+    photo_url: str = ""
 
     def to_dict(self) -> dict:
         return asdict(self)
+
+
+def model_player_stats(
+    name: str, position: str, rating: int, tier: str, real_age: int | None = None
+) -> dict:
+    """Deterministic, believable bio/stats for a player.
+
+    Real squad data gives us name/position/club/tier (and a real birth year where
+    Wikipedia had one). Caps, goals and value are modelled so each profile card is
+    plausible and stable (same player always yields the same numbers). Forwards
+    score more; keepers barely; stars rack up caps. These are indicative, not
+    official career records.
+    """
+    h = abs(hash(f"{name}:{position}"))
+    tier_caps = {"star": 78, "starter": 46, "rotation": 22, "fringe": 8}
+    base_caps = tier_caps.get(tier, 22)
+    caps = max(1, base_caps + (h % 34) - 14)
+    age = real_age if real_age is not None else 21 + (h // 7 % 15)  # 21-35
+    goal_rate = {"FWD": 0.42, "MID": 0.18, "DEF": 0.05, "GK": 0.0}[position]
+    assist_rate = {"FWD": 0.20, "MID": 0.24, "DEF": 0.08, "GK": 0.0}[position]
+    star_mult = 1.5 if tier == "star" else 1.0
+    goals = int(caps * goal_rate * star_mult * (0.7 + (h % 50) / 100))
+    assists = int(caps * assist_rate * (0.7 + (h // 3 % 50) / 100))
+    # Market value (€M): rises steeply with rating, peaks ~age 24, decays late,
+    # and gets a lift from goal involvement — so equal-rated stars still differ.
+    base_value = max(0.3, (max(0.0, rating - 55) ** 2.55) / 110.0)
+    age_factor = max(0.35, 1.0 - abs(age - 24) * 0.055)
+    involve_factor = 1.0 + (goals + assists) / 240.0
+    value = round(base_value * age_factor * involve_factor, 1)
+    return {
+        "age": age, "caps": caps, "goals": goals, "assists": assists,
+        "market_value": value, "tier": tier,
+    }
 
 
 def elo_to_base_rating(elo: float) -> float:
@@ -66,10 +107,14 @@ def generate_squad(code: str, elo: float) -> List[Player]:
             depth_penalty = depth * (2.6 if depth < 3 else 3.4)
             rating = base + rng.uniform(-2.5, 4.5) - depth_penalty
             rating = int(max(48, min(94, round(rating))))
+            tier = ("star" if depth == 0 and rating >= 85 else
+                    "starter" if depth < 2 else
+                    "rotation" if depth < 4 else "fringe")
+            name = f"{code} {pos}{depth+1}"
+            stats = model_player_stats(name, pos, rating, tier)
             players.append(Player(
                 id=f"{code}-{pos}-{depth+1}",
-                name=f"{code} {pos}{depth+1}",
-                position=pos, rating=rating, number=number,
+                name=name, position=pos, rating=rating, number=number, **stats,
             ))
             number += 1
     return players

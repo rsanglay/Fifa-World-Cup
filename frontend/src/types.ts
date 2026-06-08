@@ -16,6 +16,39 @@ export interface Player {
   rating: number;
   club?: string;
   number?: number;
+  age?: number;
+  caps?: number;
+  goals?: number;
+  assists?: number;
+  market_value?: number;
+  tier?: string;
+  photo_url?: string;
+}
+
+export interface AwardRow {
+  id: string;
+  name: string;
+  position: string;
+  team: string;
+  team_name: string;
+  photo_url?: string;
+  goals: number;
+  assists: number;
+  chances: number;
+  clean_sheets: number;
+  saves: number;
+  apps: number;
+  rating_score?: number;
+}
+
+export interface Awards {
+  golden_boot: AwardRow[];
+  top_assists: AwardRow[];
+  chances_created: AwardRow[];
+  clean_sheets: AwardRow[];
+  most_saves: AwardRow[];
+  golden_ball: AwardRow[];
+  young_player: AwardRow[];
 }
 
 export interface TeamDetail extends Team {
@@ -106,6 +139,9 @@ export interface SimResult {
     away: string;
     home_goals: number;
     away_goals: number;
+    date?: string;
+    city?: string;
+    venue?: string;
   }[];
   knockout: KnockoutMatch[];
   champion: string;
@@ -115,6 +151,7 @@ export interface SimResult {
   managed_team?: string;
   lineup?: LineupResult;
   journey?: JourneyMatch[];
+  awards?: Awards;
 }
 
 export interface LineupResult {

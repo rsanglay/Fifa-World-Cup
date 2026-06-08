@@ -8,6 +8,7 @@ import numpy as np
 
 from app.core.data import load_squads, load_tournament
 from app.engine.match import TeamStrength, predict as predict_match
+from app.engine.playerstats import attribute
 from app.engine.simulator import monte_carlo, simulate_once
 from app.engine.squad import lineup_delta
 
@@ -55,6 +56,7 @@ def simulate_full(
     rng = np.random.default_rng(seed)
     result = simulate_once(data, rng, lineup_deltas)
     result["team_names"] = {c: t["name"] for c, t in data.teams.items()}
+    result["awards"] = attribute(result, load_squads(), seed=(seed or 0))
     return result
 
 
@@ -77,6 +79,11 @@ def manage_team_run(
     }
     deltas = {team: float(delta_info.get("elo_delta", 0.0))}
     result = simulate_full(seed=seed, lineup_deltas=deltas)
+    # Re-attribute so the managed team's stats reflect the chosen XI.
+    result["awards"] = attribute(
+        result, load_squads(), seed=(seed or 0),
+        managed_team=team, managed_xi=starting_xi or None,
+    )
     result["managed_team"] = team
     result["lineup"] = delta_info
     result["journey"] = _team_journey(team, result)

@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Dict, List
 
 from app.engine.simulator import TournamentData
-from app.engine.squad import Player, generate_squad
+from app.engine.squad import Player, generate_squad, model_player_stats
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 
@@ -45,9 +45,19 @@ def load_fixtures() -> dict:
 
 
 @lru_cache(maxsize=1)
+def load_player_meta() -> Dict[str, dict]:
+    """Player name -> {photo, age} (from scripts/fetch_player_photos.py)."""
+    try:
+        return _load("players_meta.json")
+    except FileNotFoundError:
+        return {}
+
+
+@lru_cache(maxsize=1)
 def load_squads() -> Dict[str, List[Player]]:
     """Real squads from squads.json if present, else procedural fallback."""
     teams = load_teams()
+    meta = load_player_meta()
     squads: Dict[str, List[Player]] = {}
     raw: dict = {}
     try:
@@ -57,19 +67,30 @@ def load_squads() -> Dict[str, List[Player]]:
     for code, t in teams.items():
         entries = raw.get(code)
         if entries:
-            squads[code] = [
-                Player(
+            players: List[Player] = []
+            for i, e in enumerate(entries):
+                rating = int(e.get("rating") or _modelled_rating(t, e, i))
+                tier = str(e.get("tier", "rotation")).lower()
+                pm = meta.get(e["name"], {})
+                stats = model_player_stats(
+                    e["name"], e["position"], rating, tier, pm.get("age")
+                )
+                players.append(Player(
                     id=e.get("id", f"{code}-{i}"),
                     name=e["name"],
                     position=e["position"],
-                    rating=int(e.get("rating") or _modelled_rating(t, e, i)),
+                    rating=rating,
                     club=e.get("club", ""),
                     number=int(e.get("number", i + 1)),
-                )
-                for i, e in enumerate(entries)
-            ]
+                    photo_url=pm.get("photo", ""),
+                    **stats,
+                ))
+            squads[code] = players
         else:
-            squads[code] = generate_squad(code, float(t.get("elo", 1500)))
+            squad = generate_squad(code, float(t.get("elo", 1500)))
+            for p in squad:
+                p.photo_url = meta.get(p.name, {}).get("photo", "")
+            squads[code] = squad
     return squads
 
 
@@ -159,5 +180,5 @@ def load_tournament() -> TournamentData:
 
 def reset_caches() -> None:
     for fn in (load_teams, load_venues, load_historical, load_fixtures,
-               load_squads, load_tournament, group_stage_with_rest):
+               load_squads, load_tournament, group_stage_with_rest, load_player_meta):
         fn.cache_clear()
