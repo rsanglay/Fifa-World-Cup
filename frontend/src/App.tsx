@@ -1,5 +1,6 @@
 import { NavLink, Route, Routes } from "react-router-dom";
 import Home from "./features/Home";
+import Teams from "./features/Teams";
 import Groups from "./features/Groups";
 import Fixtures from "./features/Fixtures";
 import Odds from "./features/Odds";
@@ -8,6 +9,7 @@ import Simulator from "./features/Simulator";
 
 const NAV = [
   { to: "/", label: "Home", end: true },
+  { to: "/teams", label: "Teams" },
   { to: "/groups", label: "Groups" },
   { to: "/fixtures", label: "Fixtures" },
   { to: "/odds", label: "Title Odds" },
@@ -50,6 +52,7 @@ export default function App() {
       <main className="mx-auto max-w-7xl px-4 py-6">
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/teams" element={<Teams />} />
           <Route path="/groups" element={<Groups />} />
           <Route path="/fixtures" element={<Fixtures />} />
           <Route path="/odds" element={<Odds />} />

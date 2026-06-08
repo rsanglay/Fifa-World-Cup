@@ -1,0 +1,902 @@
+{
+ "Guillermo Ochoa": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Mex-Kor_%281%29_%28cropped%29.jpg/500px-Mex-Kor_%281%29_%28cropped%29.jpg",
+  "age": 41
+ },
+ "Luis Malagon": {
+  "photo": "",
+  "age": null
+ },
+ "Raul Rangel": {
+  "photo": "",
+  "age": null
+ },
+ "Cesar Montes": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/C%C3%A9sar_Montes.png/500px-C%C3%A9sar_Montes.png",
+  "age": 29
+ },
+ "Johan Vasquez": {
+  "photo": "",
+  "age": null
+ },
+ "Jorge Sanchez": {
+  "photo": "",
+  "age": null
+ },
+ "Israel Reyes": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Israel_Reyes.png/500px-Israel_Reyes.png",
+  "age": 26
+ },
+ "Jesus Gallardo": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Jes%C3%BAs_Gallardo.png/500px-Jes%C3%BAs_Gallardo.png",
+  "age": 32
+ },
+ "Kevin Alvarez": {
+  "photo": "",
+  "age": null
+ },
+ "Rafael Carmona": {
+  "photo": "https://upload.wikimedia.org/wikipedia/en/8/81/Rafael_Carmona.jpg",
+  "age": null
+ },
+ "Julian Araujo": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/D%27esquerra_a_dreta%2C_Juli%C3%A1n_Araujo_i_Marc_Casad%C3%B3%2C_jugadors_del_FCBarcelona_durant_la_gira_de_pretemporada_a_EUA._%2805-08-2024%29_%28cropped2%29.jpg/500px-D%27esquerra_a_dreta%2C_Juli%C3%A1n_Araujo_i_Marc_Casad%C3%B3%2C_jugadors_del_FCBarcelona_durant_la_gira_de_pretemporada_a_EUA._%2805-08-2024%29_%28cropped2%29.jpg",
+  "age": 25
+ },
+ "Edson Alvarez": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Edson_%C3%81lvarez.png/500px-Edson_%C3%81lvarez.png",
+  "age": 29
+ },
+ "Luis Romo": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/Luis_Romo.png/500px-Luis_Romo.png",
+  "age": 31
+ },
+ "Erik Lira": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/54/Erik_Lira_2.png/500px-Erik_Lira_2.png",
+  "age": 26
+ },
+ "Carlos Rodriguez": {
+  "photo": "",
+  "age": null
+ },
+ "Orbelin Pineda": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/Orbel%C3%ADn_Pineda.png/500px-Orbel%C3%ADn_Pineda.png",
+  "age": 30
+ },
+ "Marcel Ruiz": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Marcel_Ruiz.png/500px-Marcel_Ruiz.png",
+  "age": 26
+ },
+ "Gilberto Mora": {
+  "photo": "",
+  "age": null
+ },
+ "Hirving Lozano": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Hirving_Lozano.png/500px-Hirving_Lozano.png",
+  "age": 31
+ },
+ "Santiago Gimenez": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Santiago_Gim%C3%A9nez.png/500px-Santiago_Gim%C3%A9nez.png",
+  "age": 25
+ },
+ "Raul Jimenez": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Ra%C3%BAl_Jim%C3%A9nez_04032026_%281%29.jpg/500px-Ra%C3%BAl_Jim%C3%A9nez_04032026_%281%29.jpg",
+  "age": 35
+ },
+ "Alexis Vega": {
+  "photo": "",
+  "age": null
+ },
+ "Cesar Huerta": {
+  "photo": "",
+  "age": null
+ },
+ "Roberto Alvarado": {
+  "photo": "",
+  "age": null
+ },
+ "Henry Martin": {
+  "photo": "",
+  "age": null
+ },
+ "Julian Quinones": {
+  "photo": "",
+  "age": null
+ },
+ "Ronwen Williams": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Ronwen_Williams_AFCON2025Q_35.jpg/500px-Ronwen_Williams_AFCON2025Q_35.jpg",
+  "age": 34
+ },
+ "Brandon Petersen": {
+  "photo": "",
+  "age": null
+ },
+ "Sipho Chaine": {
+  "photo": "",
+  "age": null
+ },
+ "Nyiko Mobbie": {
+  "photo": "",
+  "age": null
+ },
+ "Mothobi Mvala": {
+  "photo": "",
+  "age": null
+ },
+ "Khuliso Mudau": {
+  "photo": "",
+  "age": null
+ },
+ "Aubrey Modiba": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/Aubrey_Modiba_%28cropped%29.jpg/500px-Aubrey_Modiba_%28cropped%29.jpg",
+  "age": null
+ },
+ "Nkosinathi Sibisi": {
+  "photo": "",
+  "age": null
+ },
+ "Siyabonga Ngezana": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Siyabonga_Ngezana_-_3_July_2023_%28cropped%29.jpg/500px-Siyabonga_Ngezana_-_3_July_2023_%28cropped%29.jpg",
+  "age": null
+ },
+ "Grant Kekana": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/Go_Ahead_Eagles_-_Mamelodi_Sundowns_FC_-_53066348125.jpg/500px-Go_Ahead_Eagles_-_Mamelodi_Sundowns_FC_-_53066348125.jpg",
+  "age": null
+ },
+ "Thapelo Morena": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Go_Ahead_Eagles_-_Mamelodi_Sundowns_FC_-_53066146134.jpg/500px-Go_Ahead_Eagles_-_Mamelodi_Sundowns_FC_-_53066146134.jpg",
+  "age": null
+ },
+ "Teboho Mokoena": {
+  "photo": "",
+  "age": null
+ },
+ "Sphephelo Sithole": {
+  "photo": "",
+  "age": null
+ },
+ "Bongani Zungu": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bc/Bongani_Zung.jpg/500px-Bongani_Zung.jpg",
+  "age": 34
+ },
+ "Mduduzi Shabalala": {
+  "photo": "",
+  "age": null
+ },
+ "Patrick Maswanganyi": {
+  "photo": "",
+  "age": null
+ },
+ "Themba Zwane": {
+  "photo": "",
+  "age": null
+ },
+ "Sibongiseni Mthethwa": {
+  "photo": "",
+  "age": null
+ },
+ "Percy Tau": {
+  "photo": "",
+  "age": null
+ },
+ "Lyle Foster": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fc/Lyle_Foster_29112025_%286%29.jpg/500px-Lyle_Foster_29112025_%286%29.jpg",
+  "age": 26
+ },
+ "Evidence Makgopa": {
+  "photo": "",
+  "age": null
+ },
+ "Iqraam Rayners": {
+  "photo": "",
+  "age": null
+ },
+ "Oswin Appollis": {
+  "photo": "",
+  "age": null
+ },
+ "Mihlali Mayambela": {
+  "photo": "",
+  "age": null
+ },
+ "Relebohile Mofokeng": {
+  "photo": "",
+  "age": 22
+ },
+ "Elias Mokwana": {
+  "photo": "",
+  "age": 27
+ },
+ "Kim Seung-gyu": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Rus-SK2017_%2822%29.jpg/500px-Rus-SK2017_%2822%29.jpg",
+  "age": 36
+ },
+ "Jo Hyeon-woo": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/2/26/Jo_Hyeon-woo.jpg",
+  "age": 35
+ },
+ "Song Bum-keun": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/240611_%EB%8C%80%ED%95%9C%EB%AF%BC%EA%B5%AD_vs_%EC%A4%91%EA%B5%AD_%28%EC%86%A1%EB%B2%94%EA%B7%BC%29.jpg/500px-240611_%EB%8C%80%ED%95%9C%EB%AF%BC%EA%B5%AD_vs_%EC%A4%91%EA%B5%AD_%28%EC%86%A1%EB%B2%94%EA%B7%BC%29.jpg",
+  "age": 29
+ },
+ "Kim Min-jae": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/FC_Red_Bull_Salzburg_gegen_Bayern_M%C3%BCnchen_%282025-01-06_Testspiel%29_26.jpg/500px-FC_Red_Bull_Salzburg_gegen_Bayern_M%C3%BCnchen_%282025-01-06_Testspiel%29_26.jpg",
+  "age": 30
+ },
+ "Kim Young-gwon": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/%28%EC%B6%94%EA%BE%B8%EB%AF%B8%29_%27%EC%9A%B8%EC%82%B0_%ED%95%A9%EB%A5%98%27_%EA%B9%80%EC%98%81%EA%B6%8C.jpg/500px-%28%EC%B6%94%EA%BE%B8%EB%AF%B8%29_%27%EC%9A%B8%EC%82%B0_%ED%95%A9%EB%A5%98%27_%EA%B9%80%EC%98%81%EA%B6%8C.jpg",
+  "age": 36
+ },
+ "Kim Ji-soo": {
+  "photo": "",
+  "age": null
+ },
+ "Kim Moon-hwan": {
+  "photo": "",
+  "age": null
+ },
+ "Lee Myung-jae": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/241110_FC_%EC%84%9C%EC%9A%B8_vs_%EC%9A%B8%EC%82%B0_%28%EC%9D%B4%EB%AA%85%EC%9E%AC%29.jpg/500px-241110_FC_%EC%84%9C%EC%9A%B8_vs_%EC%9A%B8%EC%82%B0_%28%EC%9D%B4%EB%AA%85%EC%9E%AC%29.jpg",
+  "age": null
+ },
+ "Kim Tae-hyeon": {
+  "photo": "",
+  "age": 26
+ },
+ "Cho Yu-min": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/190505_%EC%88%98%EC%9B%90FC_VS_%EC%84%9C%EC%9A%B8%EC%9D%B4%EB%9E%9C%EB%93%9C%2C_%EC%A1%B0%EC%9C%A0%EB%AF%BC_5.jpg/500px-190505_%EC%88%98%EC%9B%90FC_VS_%EC%84%9C%EC%9A%B8%EC%9D%B4%EB%9E%9C%EB%93%9C%2C_%EC%A1%B0%EC%9C%A0%EB%AF%BC_5.jpg",
+  "age": 30
+ },
+ "Seol Young-woo": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/%28%EC%B6%94%EA%BE%B8%EB%AF%B8%29_%27%EC%9A%B8%EC%82%B0_%ED%95%A9%EB%A5%98%27_%EC%84%A4%EC%98%81%EC%9A%B0.jpg/500px-%28%EC%B6%94%EA%BE%B8%EB%AF%B8%29_%27%EC%9A%B8%EC%82%B0_%ED%95%A9%EB%A5%98%27_%EC%84%A4%EC%98%81%EC%9A%B0.jpg",
+  "age": 28
+ },
+ "Hwang In-beom": {
+  "photo": "",
+  "age": null
+ },
+ "Park Yong-woo": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bb/Park_Yong-woo_20251215.png/500px-Park_Yong-woo_20251215.png",
+  "age": null
+ },
+ "Lee Jae-sung": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/e/e1/Asian_Nations_Cup_-_Jordan_and_South_Korea_%2874%29_%28cropped%29_2.jpg",
+  "age": 34
+ },
+ "Hong Hyun-seok": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/%ED%99%8D%ED%98%84%EC%84%9D_%EC%9D%B8%ED%84%B0%EB%B7%B0.jpg/500px-%ED%99%8D%ED%98%84%EC%84%9D_%EC%9D%B8%ED%84%B0%EB%B7%B0.jpg",
+  "age": 27
+ },
+ "Won Du-jae": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/%EC%9B%90%EB%91%90%EC%9E%AC_AFC_U-23_%EC%B1%94%ED%94%BC%EC%96%B8%EC%8B%AD.jpg/500px-%EC%9B%90%EB%91%90%EC%9E%AC_AFC_U-23_%EC%B1%94%ED%94%BC%EC%96%B8%EC%8B%AD.jpg",
+  "age": null
+ },
+ "Bae Jun-ho": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Bae_Jun-ho_20092025_%282%29.jpg/500px-Bae_Jun-ho_20092025_%282%29.jpg",
+  "age": 23
+ },
+ "Son Heung-min": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/BFA_2023_-2_Heung-Min_Son_%28cropped%29.jpg/500px-BFA_2023_-2_Heung-Min_Son_%28cropped%29.jpg",
+  "age": 34
+ },
+ "Lee Kang-in": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Lee_Kang-in_-_2022_%2852551771501%29_%28cropped%29.jpg/500px-Lee_Kang-in_-_2022_%2852551771501%29_%28cropped%29.jpg",
+  "age": 25
+ },
+ "Hwang Hee-chan": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/240622_%ED%99%A9%ED%9D%AC%EC%B0%AC_%ED%92%8B%EB%B3%BC_%ED%8E%98%EC%8A%A4%ED%8B%B0%EB%B2%8C.jpg/500px-240622_%ED%99%A9%ED%9D%AC%EC%B0%AC_%ED%92%8B%EB%B3%BC_%ED%8E%98%EC%8A%A4%ED%8B%B0%EB%B2%8C.jpg",
+  "age": 30
+ },
+ "Oh Hyeon-gyu": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/Oh_Hyeon-gyu_BJK.jpeg/500px-Oh_Hyeon-gyu_BJK.jpeg",
+  "age": null
+ },
+ "Joo Min-kyu": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/241110_FC_%EC%84%9C%EC%9A%B8_vs_%EC%9A%B8%EC%82%B0_%28%EC%A3%BC%EB%AF%BC%EA%B7%9C%29.jpg/500px-241110_FC_%EC%84%9C%EC%9A%B8_vs_%EC%9A%B8%EC%82%B0_%28%EC%A3%BC%EB%AF%BC%EA%B7%9C%29.jpg",
+  "age": null
+ },
+ "Eom Ji-sung": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7f/230917_FC_%EC%84%9C%EC%9A%B8_vs_%EA%B4%91%EC%A3%BC_FC_%28%EC%97%84%EC%A7%80%EC%84%B1%29.jpg/500px-230917_FC_%EC%84%9C%EC%9A%B8_vs_%EA%B4%91%EC%A3%BC_FC_%28%EC%97%84%EC%A7%80%EC%84%B1%29.jpg",
+  "age": 24
+ },
+ "Yang Min-hyuk": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bf/240626_FC_%EC%84%9C%EC%9A%B8_vs_%EA%B0%95%EC%9B%90_%28%EC%96%91%EB%AF%BC%ED%98%81%29.jpg/500px-240626_FC_%EC%84%9C%EC%9A%B8_vs_%EA%B0%95%EC%9B%90_%28%EC%96%91%EB%AF%BC%ED%98%81%29.jpg",
+  "age": 20
+ },
+ "Jeon Jin-woo": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/250702_FC_%EC%84%9C%EC%9A%B8_vs_%EC%A0%84%EB%B6%81_%28%EC%A0%84%EC%A7%84%EC%9A%B0%29.jpg/500px-250702_FC_%EC%84%9C%EC%9A%B8_vs_%EC%A0%84%EB%B6%81_%28%EC%A0%84%EC%A7%84%EC%9A%B0%29.jpg",
+  "age": null
+ },
+ "Bae Joon-ho": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Bae_Jun-ho_20092025_%282%29.jpg/500px-Bae_Jun-ho_20092025_%282%29.jpg",
+  "age": 23
+ },
+ "Jindrich Stanek": {
+  "photo": "",
+  "age": null
+ },
+ "Matej Kovar": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bb/Matj_kova-1772635856_%28cropped%29.JPG/500px-Matj_kova-1772635856_%28cropped%29.JPG",
+  "age": null
+ },
+ "Vitezslav Jaros": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/V%C3%ADt%C4%9Bzslav_Jaro%C5%A1_06042025_%281%29_%28cropped%29.jpg/500px-V%C3%ADt%C4%9Bzslav_Jaro%C5%A1_06042025_%281%29_%28cropped%29.jpg",
+  "age": 25
+ },
+ "Tomas Vlcek": {
+  "photo": "",
+  "age": 25
+ },
+ "Robin Hranac": {
+  "photo": "",
+  "age": 26
+ },
+ "Tomas Holes": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/59/Tom%C3%A1%C5%A1_Hole%C5%A1_Jablonec-Ostrava.jpg/500px-Tom%C3%A1%C5%A1_Hole%C5%A1_Jablonec-Ostrava.jpg",
+  "age": null
+ },
+ "David Zima": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/David_Zima_CZE-KUW_2021-11-11_%28cropped%29.jpg/500px-David_Zima_CZE-KUW_2021-11-11_%28cropped%29.jpg",
+  "age": 26
+ },
+ "Ladislav Krejci": {
+  "photo": "",
+  "age": null
+ },
+ "David Doudera": {
+  "photo": "",
+  "age": null
+ },
+ "Jaroslav Zeleny": {
+  "photo": "",
+  "age": null
+ },
+ "Martin Vitik": {
+  "photo": "",
+  "age": null
+ },
+ "Tomas Soucek": {
+  "photo": "",
+  "age": null
+ },
+ "Lukas Provod": {
+  "photo": "",
+  "age": null
+ },
+ "Pavel Sulc": {
+  "photo": "",
+  "age": null
+ },
+ "Antonin Barak": {
+  "photo": "",
+  "age": null
+ },
+ "Michal Sadilek": {
+  "photo": "",
+  "age": null
+ },
+ "Vaclav Cerny": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Vaclav_Cerny_2016.jpg/500px-Vaclav_Cerny_2016.jpg",
+  "age": 29
+ },
+ "Lukas Cerv": {
+  "photo": "",
+  "age": 25
+ },
+ "Patrik Schick": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/2020-03-10_Fu%C3%9Fball%2C_M%C3%A4nner%2C_UEFA_Champions_League_Achtelfinale%2C_RB_Leipzig_-_Tottenham_Hotspur_1DX_3672_by_Stepro.jpg/500px-2020-03-10_Fu%C3%9Fball%2C_M%C3%A4nner%2C_UEFA_Champions_League_Achtelfinale%2C_RB_Leipzig_-_Tottenham_Hotspur_1DX_3672_by_Stepro.jpg",
+  "age": 30
+ },
+ "Adam Hlozek": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/Adam_Hlo%C5%BEek%2C_2022-07-31%2C_Saisoner%C3%B6ffnung_Bayer_04%2C_Leverkusen_%282%29_%28cropped%29.jpg/500px-Adam_Hlo%C5%BEek%2C_2022-07-31%2C_Saisoner%C3%B6ffnung_Bayer_04%2C_Leverkusen_%282%29_%28cropped%29.jpg",
+  "age": 24
+ },
+ "Tomas Chory": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/03/Tom%C3%A1%C5%A1_Chor%C3%BD_%28cropped%29.jpg/500px-Tom%C3%A1%C5%A1_Chor%C3%BD_%28cropped%29.jpg",
+  "age": null
+ },
+ "Mojmir Chytil": {
+  "photo": "",
+  "age": null
+ },
+ "Vasil Kusej": {
+  "photo": "",
+  "age": null
+ },
+ "Matej Vydra": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cc/14-06-03-%C4%8Cesko-Rakousko-Olomouc-nr12-1.jpg/500px-14-06-03-%C4%8Cesko-Rakousko-Olomouc-nr12-1.jpg",
+  "age": 34
+ },
+ "Ondrej Lingr": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dc/Houston_Dynamo_vs_Austin_%28Apr_2025%29_15.jpg/500px-Houston_Dynamo_vs_Austin_%28Apr_2025%29_15.jpg",
+  "age": 28
+ },
+ "Daniel Vasulin": {
+  "photo": "",
+  "age": 28
+ },
+ "Maxime Crepeau": {
+  "photo": "",
+  "age": null
+ },
+ "Dayne St. Clair": {
+  "photo": "",
+  "age": null
+ },
+ "Tom McGill": {
+  "photo": "",
+  "age": null
+ },
+ "Alphonso Davies": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/ff/Alphonso_Davies_in_2022.jpg/500px-Alphonso_Davies_in_2022.jpg",
+  "age": 26
+ },
+ "Moise Bombito": {
+  "photo": "",
+  "age": null
+ },
+ "Derek Cornelius": {
+  "photo": "",
+  "age": null
+ },
+ "Alistair Johnston": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/6/6b/A_Johnston_Canada_national_football_team_WC2022_%28cropped%29.jpg",
+  "age": 28
+ },
+ "Joel Waterman": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Joel_Waterman_Philadelphia_Chicago_10.26.25-025_%28cropped%29.jpg/500px-Joel_Waterman_Philadelphia_Chicago_10.26.25-025_%28cropped%29.jpg",
+  "age": 30
+ },
+ "Kamal Miller": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/f/fb/Kamal_Miller_WC2022.jpg",
+  "age": 29
+ },
+ "Sam Adekugbe": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Sam_Adekugbe_WC2022.jpg/500px-Sam_Adekugbe_WC2022.jpg",
+  "age": 31
+ },
+ "Luc de Fougerolles": {
+  "photo": "",
+  "age": 21
+ },
+ "Stephen Eustaquio": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/f/f5/S_Eustaqui_Canada_national_football_team_WC2022_%28cropped%29.jpg",
+  "age": 30
+ },
+ "Ismael Kone": {
+  "photo": "",
+  "age": null
+ },
+ "Jonathan Osorio": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Jonathan_Osorio_2017.jpg/500px-Jonathan_Osorio_2017.jpg",
+  "age": null
+ },
+ "Mathieu Choiniere": {
+  "photo": "",
+  "age": 27
+ },
+ "Liam Fraser": {
+  "photo": "",
+  "age": null
+ },
+ "Nathan Saliba": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Nathan-Dylan_Saliba_RSC_Anderlecht_2025.jpg/500px-Nathan-Dylan_Saliba_RSC_Anderlecht_2025.jpg",
+  "age": 22
+ },
+ "Jonathan David": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ee/Jonathan_David_asse_losc_2425_%28cropped%29.jpg/500px-Jonathan_David_asse_losc_2425_%28cropped%29.jpg",
+  "age": 26
+ },
+ "Cyle Larin": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Cyle_Larin_%282021-22_S%C3%BCper_Lig%29_-_Resim1_%28cropped%29.png/500px-Cyle_Larin_%282021-22_S%C3%BCper_Lig%29_-_Resim1_%28cropped%29.png",
+  "age": 31
+ },
+ "Tajon Buchanan": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Tajon_Buchanan_WC2022.jpg/500px-Tajon_Buchanan_WC2022.jpg",
+  "age": 27
+ },
+ "Jacob Shaffelburg": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ed/Jacob_Shaffleburg_cropped.png/500px-Jacob_Shaffleburg_cropped.png",
+  "age": 27
+ },
+ "Promise David": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/Promise_David_Union_Saint-Gilloise_2025.jpg/500px-Promise_David_Union_Saint-Gilloise_2025.jpg",
+  "age": 25
+ },
+ "Theo Bair": {
+  "photo": "",
+  "age": 27
+ },
+ "Jayden Nelson": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Jayden_Nelson_watching_match.jpeg/500px-Jayden_Nelson_watching_match.jpeg",
+  "age": 24
+ },
+ "Ali Ahmed": {
+  "photo": "",
+  "age": null
+ },
+ "Niko Sigur": {
+  "photo": "",
+  "age": null
+ },
+ "Nikola Vasilj": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/2025-04-23_-_FC_St_Pauli_-_Nikola_Vasilj.jpg/500px-2025-04-23_-_FC_St_Pauli_-_Nikola_Vasilj.jpg",
+  "age": 31
+ },
+ "Ibrahim Sehic": {
+  "photo": "",
+  "age": null
+ },
+ "Vladan Kovacevic": {
+  "photo": "",
+  "age": null
+ },
+ "Sead Kolasinac": {
+  "photo": "",
+  "age": null
+ },
+ "Nikola Katic": {
+  "photo": "",
+  "age": null
+ },
+ "Dennis Hadzikadunic": {
+  "photo": "",
+  "age": null
+ },
+ "Adnan Bajic": {
+  "photo": "",
+  "age": null
+ },
+ "Amar Dedic": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/%282024-09-10_%29_FC_RB_Salzburg_gegen_SCR_Altach_24.jpg/500px-%282024-09-10_%29_FC_RB_Salzburg_gegen_SCR_Altach_24.jpg",
+  "age": 24
+ },
+ "Aleksandar Sedlar": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Aleksandar_Sedlar_2023.jpg/500px-Aleksandar_Sedlar_2023.jpg",
+  "age": 35
+ },
+ "Eldar Civic": {
+  "photo": "",
+  "age": null
+ },
+ "Miralem Pjanic": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/Miralem_Pjani%C4%87_2025.jpg/500px-Miralem_Pjani%C4%87_2025.jpg",
+  "age": 36
+ },
+ "Edin Visca": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/Edin_Visca.jpg/500px-Edin_Visca.jpg",
+  "age": 36
+ },
+ "Gojko Cimirot": {
+  "photo": "",
+  "age": 34
+ },
+ "Ivan Basic": {
+  "photo": "",
+  "age": null
+ },
+ "Benjamin Tahirovic": {
+  "photo": "",
+  "age": null
+ },
+ "Amar Memic": {
+  "photo": "",
+  "age": null
+ },
+ "Dal Varesanovic": {
+  "photo": "",
+  "age": null
+ },
+ "Edin Dzeko": {
+  "photo": "",
+  "age": null
+ },
+ "Ermedin Demirovic": {
+  "photo": "",
+  "age": 28
+ },
+ "Smail Prevljak": {
+  "photo": "",
+  "age": null
+ },
+ "Haris Tabakovic": {
+  "photo": "",
+  "age": null
+ },
+ "Said Hamulic": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Said_Hamuli%C4%87.jpg/500px-Said_Hamuli%C4%87.jpg",
+  "age": 26
+ },
+ "Nemanja Bilbija": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Nemanja_Bilbija_01_%28cropped%29.jpg/500px-Nemanja_Bilbija_01_%28cropped%29.jpg",
+  "age": 36
+ },
+ "Armin Gigovic": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/2025-03-05_Armin_Gigovic_Holstein_Kiel_pic1.jpg/500px-2025-03-05_Armin_Gigovic_Holstein_Kiel_pic1.jpg",
+  "age": 24
+ },
+ "Kenan Kodro": {
+  "photo": "",
+  "age": 33
+ },
+ "Anel Ahmedhodzic": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7c/Anel_Ahmedhod%C5%BEi%C4%87_bij_Feyenoord_%282025%29.JPG/500px-Anel_Ahmedhod%C5%BEi%C4%87_bij_Feyenoord_%282025%29.JPG",
+  "age": 27
+ },
+ "Meshaal Barsham": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d2/Qatar_v_Lebanon_%2832%29_%28cropped%29.jpg/500px-Qatar_v_Lebanon_%2832%29_%28cropped%29.jpg",
+  "age": 28
+ },
+ "Saad Al-Sheeb": {
+  "photo": "",
+  "age": null
+ },
+ "Yousef Hassan": {
+  "photo": "",
+  "age": null
+ },
+ "Pedro Miguel": {
+  "photo": "",
+  "age": null
+ },
+ "Boualem Khoukhi": {
+  "photo": "",
+  "age": null
+ },
+ "Tarek Salman": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/7/76/Tarek_Salman.jpg",
+  "age": null
+ },
+ "Bassam Al-Rawi": {
+  "photo": "",
+  "age": null
+ },
+ "Homam Ahmed": {
+  "photo": "",
+  "age": null
+ },
+ "Jassem Gaber": {
+  "photo": "",
+  "age": null
+ },
+ "Mohammed Emad": {
+  "photo": "",
+  "age": null
+ },
+ "Sultan Al-Brake": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/3/36/Sultan_Al_Brake_in_2018.jpg",
+  "age": 30
+ },
+ "Karim Boudiaf": {
+  "photo": "",
+  "age": null
+ },
+ "Abdulaziz Hatem": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/2/20/Abdulaziz_Hatem.jpg",
+  "age": 36
+ },
+ "Ali Asad": {
+  "photo": "",
+  "age": null
+ },
+ "Mohammed Waad": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/c/c5/Asian_Nations_Cup_Iran_-_Qatar_%2822%29_%28cropped%29.jpg",
+  "age": 27
+ },
+ "Jassem Al-Sharshani": {
+  "photo": "",
+  "age": 23
+ },
+ "Ahmed Fathi": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Nobel_Peace_Prize_Concert_2011_Ahmed_Fathi_Harry_Wad.jpg/500px-Nobel_Peace_Prize_Concert_2011_Ahmed_Fathi_Harry_Wad.jpg",
+  "age": null
+ },
+ "Akram Afif": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/c/c5/Qatar_v_Lebanon_%2837%29_%28cropped%29.jpg",
+  "age": 30
+ },
+ "Almoez Ali": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/8/80/Moez_Ali_at_Qatar_v_Japan_%E2%80%93_AFC_Asian_Cup_2019_final_32_%282%29.jpg",
+  "age": 30
+ },
+ "Hassan Al-Haydos": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/d/df/Qatar_-_Japan%2C_AFC_Asian_Cup_2019_58_-_Hassan_Al_Haydos.jpg",
+  "age": 36
+ },
+ "Yusuf Abdurisag": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/%D9%8A%D9%88%D8%B3%D9%81_%D9%82%D8%B7%D8%B1_%D8%A7%D9%84%D9%88%D9%83%D8%B1%D8%A9.jpg/500px-%D9%8A%D9%88%D8%B3%D9%81_%D9%82%D8%B7%D8%B1_%D8%A7%D9%84%D9%88%D9%83%D8%B1%D8%A9.jpg",
+  "age": 27
+ },
+ "Ahmed Alaaeldin": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ee/Qatar_v_Japan_%E2%80%93_AFC_Asian_Cup_2019_final_04_%28cropped%29.jpg/500px-Qatar_v_Japan_%E2%80%93_AFC_Asian_Cup_2019_final_04_%28cropped%29.jpg",
+  "age": 33
+ },
+ "Mohammed Muntari": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/Esteghlal_FC_vs_Al-Gharafa_FC%2C_16_September_2024_-_02.jpg/500px-Esteghlal_FC_vs_Al-Gharafa_FC%2C_16_September_2024_-_02.jpg",
+  "age": 33
+ },
+ "Khaled Ali": {
+  "photo": "",
+  "age": null
+ },
+ "Tameem Al-Muhaza": {
+  "photo": "",
+  "age": null
+ },
+ "Mostafa Meshaal": {
+  "photo": "",
+  "age": null
+ },
+ "Yann Sommer": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/FC_Salzburg_gegen_Inter_Mailand_%28Testspiel_2023-08-09%29_69.jpg/500px-FC_Salzburg_gegen_Inter_Mailand_%28Testspiel_2023-08-09%29_69.jpg",
+  "age": 38
+ },
+ "Gregor Kobel": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/2023-08-12_TSV_Schott_Mainz_gegen_Borussia_Dortmund_%28DFB-Pokal_2023-24%29_by_Sandro_Halank%E2%80%93090.jpg/500px-2023-08-12_TSV_Schott_Mainz_gegen_Borussia_Dortmund_%28DFB-Pokal_2023-24%29_by_Sandro_Halank%E2%80%93090.jpg",
+  "age": 29
+ },
+ "Jonas Omlin": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/Jonas_Omlin_2019.jpg/500px-Jonas_Omlin_2019.jpg",
+  "age": 32
+ },
+ "Manuel Akanji": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/2023-10-04_Fu%C3%9Fball%2C_M%C3%A4nner%2C_UEFA_Champions_League%2C_RB_Leipzig_-_Manchester_City_FC_1DX_2792_%28Manuel_Akanji%29.jpg/500px-2023-10-04_Fu%C3%9Fball%2C_M%C3%A4nner%2C_UEFA_Champions_League%2C_RB_Leipzig_-_Manchester_City_FC_1DX_2792_%28Manuel_Akanji%29.jpg",
+  "age": 31
+ },
+ "Nico Elvedi": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/0/0e/Wales-Switzerland_match_at_Euro_2020_in_Baku_%28cropped%29.jpg",
+  "age": 30
+ },
+ "Ricardo Rodriguez": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/Ricardo_Rodr%C3%ADguez_2018.jpg/500px-Ricardo_Rodr%C3%ADguez_2018.jpg",
+  "age": 34
+ },
+ "Silvan Widmer": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/AUT_vs._SUI_2015-11-17_%28173%29_Silvan_Widmer.jpg/500px-AUT_vs._SUI_2015-11-17_%28173%29_Silvan_Widmer.jpg",
+  "age": 33
+ },
+ "Fabian Schar": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/Fabian_Sch%C3%A4r.jpg/500px-Fabian_Sch%C3%A4r.jpg",
+  "age": 35
+ },
+ "Cedric Zesiger": {
+  "photo": "",
+  "age": 28
+ },
+ "Aurele Amenda": {
+  "photo": "",
+  "age": 23
+ },
+ "Miro Muheim": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/2025-05-16_Hamburger_SV_Miro_Muheim.jpg/500px-2025-05-16_Hamburger_SV_Miro_Muheim.jpg",
+  "age": 28
+ },
+ "Granit Xhaka": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/Granit_Xhaka_%28cropped%29.jpg/500px-Granit_Xhaka_%28cropped%29.jpg",
+  "age": 34
+ },
+ "Remo Freuler": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/c/c6/RemoFreuler.jpg",
+  "age": 34
+ },
+ "Denis Zakaria": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Zakaria_asse_asm_2425_%28cropped%29.png/500px-Zakaria_asse_asm_2425_%28cropped%29.png",
+  "age": 30
+ },
+ "Michel Aebischer": {
+  "photo": "",
+  "age": 29
+ },
+ "Vincent Sierro": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/RC_Lens_-_Toulouse_FC_%2824-09-2023%29_28.jpg/500px-RC_Lens_-_Toulouse_FC_%2824-09-2023%29_28.jpg",
+  "age": 31
+ },
+ "Fabian Rieder": {
+  "photo": "",
+  "age": 24
+ },
+ "Xherdan Shaqiri": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/Xherdan_Shaqiri_2018.jpg/500px-Xherdan_Shaqiri_2018.jpg",
+  "age": 35
+ },
+ "Breel Embolo": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2d/2022128160447_2022-05-08_Fussball_Eintracht_Frankfurt_vs_Borussia_M%C3%B6nchengladbach_-_Sven_-_1D_X_MK_II_-_1422_-_B70I7533_%28cropped%29.jpg/500px-2022128160447_2022-05-08_Fussball_Eintracht_Frankfurt_vs_Borussia_M%C3%B6nchengladbach_-_Sven_-_1D_X_MK_II_-_1422_-_B70I7533_%28cropped%29.jpg",
+  "age": 29
+ },
+ "Dan Ndoye": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Lens_-_Nice_%2823-01-2021%29_52.jpg/500px-Lens_-_Nice_%2823-01-2021%29_52.jpg",
+  "age": 26
+ },
+ "Ruben Vargas": {
+  "photo": "",
+  "age": 28
+ },
+ "Zeki Amdouni": {
+  "photo": "",
+  "age": 26
+ },
+ "Johan Manzambi": {
+  "photo": "",
+  "age": 21
+ },
+ "Andi Zeqiri": {
+  "photo": "",
+  "age": null
+ },
+ "Bilal Touati": {
+  "photo": "",
+  "age": null
+ },
+ "Lucas Blondel": {
+  "photo": "",
+  "age": null
+ },
+ "Alisson": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/20180610_FIFA_Friendly_Match_Austria_vs._Brazil_850_1625.jpg/500px-20180610_FIFA_Friendly_Match_Austria_vs._Brazil_850_1625.jpg",
+  "age": 34
+ },
+ "Ederson": {
+  "photo": "",
+  "age": null
+ },
+ "Bento": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Bento_box_from_a_grocery_store.jpg/500px-Bento_box_from_a_grocery_store.jpg",
+  "age": null
+ },
+ "Danilo": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Danilo_T%C3%BCrk_2014.jpg/500px-Danilo_T%C3%BCrk_2014.jpg",
+  "age": null
+ },
+ "Marquinhos": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dc/FC_Salzburg_gegen_Paris_Saint-Germain_UEFA_Champions_League_49_%28cropped%29.jpg/500px-FC_Salzburg_gegen_Paris_Saint-Germain_UEFA_Champions_League_49_%28cropped%29.jpg",
+  "age": 32
+ },
+ "Gabriel Magalhaes": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/1_Gabriel_Magalh%C3%A3es_2026.jpg/500px-1_Gabriel_Magalh%C3%A3es_2026.jpg",
+  "age": 29
+ },
+ "Wesley": {
+  "photo": "",
+  "age": null
+ },
+ "Vanderson": {
+  "photo": "",
+  "age": null
+ },
+ "Alex Sandro": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/FC_Zenit_Saint_Petersburg_vs._Juventus%2C_20_October_2021_28_-_Alex_Sandro_%28cropped2%29.jpg/500px-FC_Zenit_Saint_Petersburg_vs._Juventus%2C_20_October_2021_28_-_Alex_Sandro_%28cropped2%29.jpg",
+  "age": 35
+ },
+ "Eder Militao": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Eder_Militao_2021.jpg/500px-Eder_Militao_2021.jpg",
+  "age": 28
+ },
+ "Carlos Augusto": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/FC_Salzburg_gegen_Inter_Mailand_%28UEFA_Championsleague_2023-11-08%29_15.jpg/500px-FC_Salzburg_gegen_Inter_Mailand_%28UEFA_Championsleague_2023-11-08%29_15.jpg",
+  "age": 27
+ },
+ "Bruno Guimaraes": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Bruno_Guimar%C3%A3es.png/500px-Bruno_Guimar%C3%A3es.png",
+  "age": 29
+ },
+ "Andre": {
+  "photo": "",
+  "age": null
+ },
+ "Gerson": {
+  "photo": "",
+  "age": null
+ },
+ "Joelinton": {
+  "photo": "",
+  "age": null
+ },
+ "Lucas Paqueta": {
+  "photo": "",
+  "age": null
+ },
+ "Vinicius Junior": {
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c6/2023_05_06_Final_de_la_Copa_del_Rey_-_52879242230_%28cropped%29.jpg/500px-2023_05_06_Final_de_la_Copa_del_Rey_-_52879242230_%28cropped%29.jpg",
+  "age": 26
+ }
+}
