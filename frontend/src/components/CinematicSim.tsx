@@ -136,7 +136,7 @@ export default function CinematicSim({
 
 function scorerLine(events: MatchEvent[] | undefined, team: string): string {
   if (!events) return "";
-  const mine = events.filter((e) => e.team === team);
+  const mine = events.filter((e) => e.team === team && e.type !== "red");
   if (!mine.length) return "";
   return mine.map((e) => `${e.scorer} ${e.minute}'`).join(", ");
 }

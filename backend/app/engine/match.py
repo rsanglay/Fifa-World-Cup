@@ -112,6 +112,9 @@ def _poisson_pmf(ks: np.ndarray, lam: float) -> np.ndarray:
     return np.exp(-lam) * np.power(lam, ks) / _FACTORIAL
 
 
+RED_CARD_PROB = 0.055  # per team, per match
+
+
 @dataclass
 class MatchResult:
     home_goals: int
@@ -121,6 +124,9 @@ class MatchResult:
     went_penalties: bool = False
     home_pens: int = 0
     away_pens: int = 0
+    # Red-card minute for each side (None if no red card).
+    red_home: int | None = None
+    red_away: int | None = None
 
     @property
     def winner(self) -> Optional[str]:
@@ -143,11 +149,26 @@ def simulate(
 ) -> MatchResult:
     """Simulate one match. Knockouts always resolve to a winner."""
     lam_home, lam_away = _lambdas(home, away, home_advantage)
+
+    # Red cards: a sending-off late hurts less than an early one. The carded
+    # side loses attacking output; the opponent gains a little.
+    red_home = red_away = None
+    if rng.random() < RED_CARD_PROB:
+        red_home = int(rng.integers(20, 90))
+        share = red_home / 90.0
+        lam_home *= 0.55 + 0.40 * share
+        lam_away *= 1.0 + 0.22 * (1.0 - share)
+    if rng.random() < RED_CARD_PROB:
+        red_away = int(rng.integers(20, 90))
+        share = red_away / 90.0
+        lam_away *= 0.55 + 0.40 * share
+        lam_home *= 1.0 + 0.22 * (1.0 - share)
+
     hg = int(rng.poisson(lam_home))
     ag = int(rng.poisson(lam_away))
 
     if not knockout or hg != ag:
-        return MatchResult(hg, ag)
+        return MatchResult(hg, ag, red_home=red_home, red_away=red_away)
 
     # --- Extra time: 30 mins at ~1/3 the regulation rate. ---
     et_home = int(rng.poisson(lam_home / 3.0))
@@ -155,7 +176,8 @@ def simulate(
     hg += et_home
     ag += et_away
     if hg != ag:
-        return MatchResult(hg, ag, went_extra_time=True)
+        return MatchResult(hg, ag, went_extra_time=True,
+                           red_home=red_home, red_away=red_away)
 
     # --- Penalties: best-of-5 then sudden death, nudged by strength. ---
     elo_h = home.effective_elo(home_advantage)
@@ -164,7 +186,7 @@ def simulate(
     hp, ap = _shootout(rng, p_home)
     return MatchResult(
         hg, ag, went_extra_time=True, went_penalties=True,
-        home_pens=hp, away_pens=ap,
+        home_pens=hp, away_pens=ap, red_home=red_home, red_away=red_away,
     )
 
 

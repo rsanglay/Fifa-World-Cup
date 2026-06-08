@@ -80,7 +80,7 @@ export default function MatchModal({
             <div className="space-y-1 text-right text-sm">
               {homeEv.map((e, i) => (
                 <div key={i} className="text-white/80">
-                  <span className="text-white/40">{e.minute}'</span> ⚽ {e.scorer}
+                  <span className="text-white/40">{e.minute}'</span> {e.type === "red" ? "🟥" : "⚽"} {e.scorer}
                   {e.assist && <div className="text-[10px] text-white/30">assist: {e.assist}</div>}
                 </div>
               ))}
@@ -88,7 +88,7 @@ export default function MatchModal({
             <div className="space-y-1 text-left text-sm">
               {awayEv.map((e, i) => (
                 <div key={i} className="text-white/80">
-                  ⚽ {e.scorer} <span className="text-white/40">{e.minute}'</span>
+                  {e.type === "red" ? "🟥" : "⚽"} {e.scorer} <span className="text-white/40">{e.minute}'</span>
                   {e.assist && <div className="text-[10px] text-white/30">assist: {e.assist}</div>}
                 </div>
               ))}

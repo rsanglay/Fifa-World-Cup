@@ -44,6 +44,21 @@ def _days_between(date_a: str, date_b: str) -> Optional[int]:
         return None
 
 
+# Momentum / form: recent results nudge a team's effective strength.
+MOMENTUM_CAP = 45.0   # max Elo swing from form
+MOMENTUM_WIN = 18.0   # gain for a win (loss is symmetric)
+MOMENTUM_DECAY = 0.7  # prior form retained before applying the new result
+
+
+def update_momentum(momentum: Dict[str, float], team: str, delta: float) -> None:
+    prior = momentum.get(team, 0.0) * MOMENTUM_DECAY
+    momentum[team] = max(-MOMENTUM_CAP, min(MOMENTUM_CAP, prior + delta))
+
+
+def _momentum_adv(home: str, away: str, momentum: Dict[str, float]) -> float:
+    return momentum.get(home, 0.0) - momentum.get(away, 0.0)
+
+
 def fatigue_penalty(rest_days: Optional[int]) -> float:
     """Elo penalty (>=0) for a side playing on `rest_days` days' rest."""
     if rest_days is None:
@@ -163,14 +178,18 @@ def play_group(
     rng: np.random.Generator,
     venue_country: Dict[int, str],
     last_played: Optional[Dict[str, str]] = None,
+    momentum: Optional[Dict[str, float]] = None,
 ) -> tuple[List[TeamRecord], List[dict]]:
     """Simulate one group's 6 matches; return sorted table + match log.
 
     Matches are played in date order so each team's rest (days since its
-    previous fixture) is tracked correctly via `last_played`.
+    previous fixture) is tracked correctly via `last_played`; `momentum`
+    carries recent-form nudges.
     """
     if last_played is None:
         last_played = {}
+    if momentum is None:
+        momentum = {}
     records = {c: TeamRecord(c, group) for c in team_codes}
     log: List[dict] = []
     ordered = sorted(fixtures, key=lambda f: (f.get("date", ""), f.get("match_no", 0)))
@@ -180,9 +199,11 @@ def play_group(
         date = fx.get("date")
         h_adv = _home_adv(home, away, country)
         h_adv += _net_fatigue_adv(home, away, date, last_played)
+        h_adv += _momentum_adv(home, away, momentum)
         res = simulate(strengths[home], strengths[away], rng, home_advantage=h_adv)
         records[home].apply(away, res.home_goals, res.away_goals)
         records[away].apply(home, res.away_goals, res.home_goals)
+        _apply_result_momentum(momentum, home, away, res.home_goals, res.away_goals)
         if date:
             last_played[home] = date
             last_played[away] = date
@@ -191,8 +212,21 @@ def play_group(
             "home": home, "away": away,
             "home_goals": res.home_goals, "away_goals": res.away_goals,
             "date": date, "city": fx.get("city"), "venue": fx.get("venue"),
+            "red_home": res.red_home, "red_away": res.red_away,
         })
     return _sort_group(list(records.values())), log
+
+
+def _apply_result_momentum(momentum, home, away, hg, ag) -> None:
+    if hg > ag:
+        update_momentum(momentum, home, MOMENTUM_WIN)
+        update_momentum(momentum, away, -MOMENTUM_WIN)
+    elif ag > hg:
+        update_momentum(momentum, away, MOMENTUM_WIN)
+        update_momentum(momentum, home, -MOMENTUM_WIN)
+    else:
+        update_momentum(momentum, home, 0.0)
+        update_momentum(momentum, away, 0.0)
 
 
 def _home_adv(home: str, away: str, country: str) -> float:
@@ -266,10 +300,13 @@ def build_knockout(
     rng: np.random.Generator,
     knockout_meta: Optional[List[dict]] = None,
     last_played: Optional[Dict[str, str]] = None,
+    momentum: Optional[Dict[str, float]] = None,
 ) -> tuple[List[KnockoutMatch], str]:
     """Simulate the entire knockout phase; return all matches + champion."""
     if last_played is None:
         last_played = {}
+    if momentum is None:
+        momentum = {}
     slot_map, _ = _resolve_qualifiers(group_tables)
     meta_by_no = {m["match_no"]: m for m in (knockout_meta or [])}
 
@@ -282,7 +319,7 @@ def build_knockout(
         km = KnockoutMatch(no, "R32",
                            home=slot_map.get(sh), away=slot_map.get(sa),
                            meta=meta_by_no.get(no, {}))
-        _play_ko(km, strengths, rng, last_played)
+        _play_ko(km, strengths, rng, last_played, momentum)
         r32.append(km)
     matches.extend(r32)
 
@@ -297,14 +334,14 @@ def build_knockout(
             away = prev[2 * k + 1].winner_code
             km = KnockoutMatch(no, rnd, home=home, away=away,
                                meta=meta_by_no.get(no, {}))
-            _play_ko(km, strengths, rng, last_played)
+            _play_ko(km, strengths, rng, last_played, momentum)
             cur.append(km)
         matches.extend(cur)
         if rnd == "SF":  # third-place play-off contested by the two SF losers
             tp = KnockoutMatch(start_no + count, "3P",
                                home=cur[0].loser_code, away=cur[1].loser_code,
                                meta=meta_by_no.get(start_no + count, {}))
-            _play_ko(tp, strengths, rng, last_played)
+            _play_ko(tp, strengths, rng, last_played, momentum)
             matches.append(tp)
             start_no = start_no + count + 1
         else:
@@ -320,22 +357,30 @@ def _play_ko(
     strengths: Dict[str, TeamStrength],
     rng: np.random.Generator,
     last_played: Optional[Dict[str, str]] = None,
+    momentum: Optional[Dict[str, float]] = None,
 ) -> None:
     if not km.home or not km.away:
         return
     if last_played is None:
         last_played = {}
+    if momentum is None:
+        momentum = {}
     country = km.meta.get("country", "")
     date = km.meta.get("date")
     h_adv = _home_adv(km.home, km.away, country)
     h_adv += _net_fatigue_adv(km.home, km.away, date, last_played)
+    h_adv += _momentum_adv(km.home, km.away, momentum)
     res = simulate(strengths[km.home], strengths[km.away], rng,
                    home_advantage=h_adv, knockout=True)
     km.result = res
     if res.winner == "home":
         km.winner_code, km.loser_code = km.home, km.away
+        update_momentum(momentum, km.home, MOMENTUM_WIN)
+        update_momentum(momentum, km.away, -MOMENTUM_WIN)
     else:
         km.winner_code, km.loser_code = km.away, km.home
+        update_momentum(momentum, km.away, MOMENTUM_WIN)
+        update_momentum(momentum, km.home, -MOMENTUM_WIN)
     if date:
         last_played[km.home] = date
         last_played[km.away] = date

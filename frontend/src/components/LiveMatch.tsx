@@ -33,8 +33,9 @@ export default function LiveMatch({
   }, [match, durationMs, fullTime]);
 
   const shown = events.filter((e) => e.minute <= clock);
-  const hg = shown.filter((e) => e.team === match.home).length;
-  const ag = shown.filter((e) => e.team === match.away).length;
+  const goals = shown.filter((e) => e.type !== "red");
+  const hg = goals.filter((e) => e.team === match.home).length;
+  const ag = goals.filter((e) => e.team === match.away).length;
 
   return (
     <div className="card relative overflow-hidden p-6">
@@ -73,7 +74,7 @@ export default function LiveMatch({
               }`}
             >
               <span className="text-white/40">{e.minute}'</span>
-              <span>⚽</span>
+              <span>{e.type === "red" ? "🟥" : "⚽"}</span>
               <span className="font-medium">{e.scorer}</span>
               {e.assist && <span className="text-[11px] text-white/30">({e.assist})</span>}
             </motion.div>

@@ -89,17 +89,19 @@ def attribute(
     matches = []
     for m in result.get("group_matches", []):
         matches.append((m["match_no"], m["home"], m["away"], m["home_goals"],
-                        m["away_goals"], False, None, None))
+                        m["away_goals"], False, None, None,
+                        m.get("red_home"), m.get("red_away")))
     for m in result.get("knockout", []):
         if m.get("home") and m.get("away") and m.get("home_goals") is not None:
             matches.append((m["match_no"], m["home"], m["away"], m["home_goals"],
                             m["away_goals"], bool(m.get("extra_time")),
-                            m.get("home_pens"), m.get("away_pens")))
+                            m.get("home_pens"), m.get("away_pens"),
+                            m.get("red_home"), m.get("red_away")))
 
     match_events: Dict[int, dict] = {}
     lineups: Dict[int, dict] = {}
 
-    for no, home, away, hg, ag, et, hp, ap in matches:
+    for no, home, away, hg, ag, et, hp, ap, red_h, red_a in matches:
         home_xi, away_xi = xi(home), xi(away)
         lineups[no] = {"home": xi_payload(home_xi), "away": xi_payload(away_xi)}
         events = []
@@ -124,6 +126,7 @@ def attribute(
                         tally[assister.id].chances += 1
                         assist = assister.name
                 events.append({
+                    "type": "goal",
                     "minute": mins[k] if k < len(mins) else 90,
                     "team": team, "scorer": scorer.name,
                     "scorer_id": scorer.id, "position": scorer.position,
@@ -138,6 +141,16 @@ def attribute(
                     tally[gk.id].clean_sheets += 1
                 shots = conceded + int(rng.poisson(2.6))
                 tally[gk.id].saves += max(0, shots - conceded)
+        # Red cards: attribute to a defender/midfielder on the carded side.
+        for team, line, red_min in ((home, home_xi, red_h), (away, away_xi, red_a)):
+            if red_min:
+                cand = [p for p in line if p.position in ("DEF", "MID")] or line
+                carded = cand[int(rng.integers(len(cand)))]
+                events.append({
+                    "type": "red", "minute": int(red_min), "team": team,
+                    "scorer": carded.name, "scorer_id": carded.id,
+                    "position": carded.position, "assist": None,
+                })
         events.sort(key=lambda e: e["minute"])
         match_events[no] = {
             "events": events, "penalties": hp is not None,

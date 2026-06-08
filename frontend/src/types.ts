@@ -26,6 +26,7 @@ export interface Player {
 }
 
 export interface MatchEvent {
+  type?: "goal" | "red";
   minute: number;
   team: string;
   scorer: string;

@@ -58,9 +58,10 @@ def simulate_once(
     strengths = _strengths(data, lineup_deltas)
     members = data.group_members()
 
-    # Shared rest tracker: team code -> date of its most recent match. Carries
-    # from the group stage into the knockouts so short turnarounds cost form.
+    # Shared trackers carried from the group stage into the knockouts:
+    # last_played -> rest/fatigue; momentum -> recent-form nudge.
     last_played: Dict[str, str] = {}
+    momentum: Dict[str, float] = {}
 
     group_tables: Dict[str, List[TeamRecord]] = {}
     group_logs: List[dict] = []
@@ -69,13 +70,13 @@ def simulate_once(
             continue
         table, log = play_group(
             g, members[g], strengths, data.group_fixtures.get(g, []),
-            rng, data.venue_country, last_played,
+            rng, data.venue_country, last_played, momentum,
         )
         group_tables[g] = table
         group_logs.extend(log)
 
     ko_matches, champion = build_knockout(
-        group_tables, strengths, rng, data.knockout_meta, last_played,
+        group_tables, strengths, rng, data.knockout_meta, last_played, momentum,
     )
 
     return {
@@ -104,6 +105,8 @@ def _ko_dict(km: KnockoutMatch) -> dict:
         "winner": km.winner_code,
         "venue": km.meta.get("venue"), "city": km.meta.get("city"),
         "date": km.meta.get("date"),
+        "red_home": res.red_home if res else None,
+        "red_away": res.red_away if res else None,
     }
 
 
