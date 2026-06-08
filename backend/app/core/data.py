@@ -73,13 +73,25 @@ def load_squads() -> Dict[str, List[Player]]:
     return squads
 
 
+# Importance tier -> rating bump above the team's average level.
+_TIER_BUMP = {"star": 9.0, "starter": 3.5, "rotation": -2.5, "fringe": -6.5}
+
+
 def _modelled_rating(team: dict, entry: dict, idx: int) -> int:
-    """Rating for a real player when the data file omits one."""
+    """Derive a 50-94 rating from the player's importance tier + team strength.
+
+    Real squad files carry a `tier` (star/starter/rotation/fringe) rather than a
+    numeric rating; the team's Elo sets the average level and the tier spreads
+    players around it so stars outrate fringe within every squad.
+    """
     from app.engine.squad import elo_to_base_rating
 
     base = elo_to_base_rating(float(team.get("elo", 1500)))
-    depth_penalty = (idx // 4) * 1.5
-    return int(max(50, min(93, round(base + 3 - depth_penalty))))
+    tier = str(entry.get("tier", "rotation")).lower()
+    bump = _TIER_BUMP.get(tier, -2.5)
+    # Tiny deterministic intra-tier spread so the "best XI" is well-defined.
+    jitter = (hash(entry.get("name", "")) % 5) * 0.4
+    return int(max(50, min(94, round(base + bump + jitter))))
 
 
 @lru_cache(maxsize=1)
