@@ -36,6 +36,8 @@ export interface Fixture {
   away?: string;
   home_src?: string;
   away_src?: string;
+  home_rest?: number | null;
+  away_rest?: number | null;
 }
 
 export interface OddsRow {

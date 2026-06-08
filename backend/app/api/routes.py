@@ -4,6 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query
 
 from app.core.data import (
+    group_stage_with_rest,
     load_historical,
     load_squads,
     load_teams,
@@ -56,7 +57,7 @@ def get_groups():
 def get_fixtures():
     data = load_tournament()
     return {
-        "group_stage": [fx for g in data.group_fixtures.values() for fx in g],
+        "group_stage": group_stage_with_rest(),
         "knockout": data.knockout_meta,
     }
 

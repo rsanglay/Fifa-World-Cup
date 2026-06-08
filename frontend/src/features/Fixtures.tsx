@@ -32,10 +32,29 @@ export default function Fixtures() {
 
   const name = (c?: string) => (c && teams[c]?.name) || c || "TBD";
 
+  const RestBadge = ({ rest }: { rest?: number | null }) => {
+    if (rest == null) return <span className="text-white/30">1st game</span>;
+    const short = rest <= 3;
+    return (
+      <span
+        className={`rounded px-1.5 py-0.5 ${
+          short ? "bg-red-500/20 text-red-300" : "bg-white/5 text-white/50"
+        }`}
+        title={short ? "Short turnaround — fatigue penalty in the model" : "Rest before this match"}
+      >
+        🛌 {rest}d rest{short ? " ⚠" : ""}
+      </span>
+    );
+  };
+
   return (
     <div>
       <h1 className="mb-1 font-display text-4xl tracking-wide">FIXTURES</h1>
-      <p className="mb-4 text-white/60">All 72 group-stage matches with real dates and venues.</p>
+      <p className="mb-1 text-white/60">All 72 group-stage matches with real dates and venues.</p>
+      <p className="mb-4 text-xs text-white/40">
+        🛌 shows each team's rest before kick-off. A short turnaround (≤3 days, ⚠) costs
+        a small fatigue penalty in the prediction model.
+      </p>
 
       <div className="mb-5 flex flex-wrap gap-1">
         {["ALL", ..."ABCDEFGHIJKL".split("")].map((g) => (
@@ -63,19 +82,23 @@ export default function Fixtures() {
             </div>
             <div className="grid gap-2 md:grid-cols-2">
               {list.map((f) => (
-                <div key={f.match_no} className="card flex items-center gap-3 p-3">
-                  <span className="w-7 text-center text-xs text-white/40">{f.match_no}</span>
-                  <div className="flex flex-1 items-center justify-end gap-2 text-right">
-                    <span className="font-medium">{name(f.home)}</span>
-                    <span className="text-2xl">{flag(f.home || "")}</span>
+                <div key={f.match_no} className="card p-3">
+                  <div className="flex items-center gap-3">
+                    <span className="w-7 text-center text-xs text-white/40">{f.match_no}</span>
+                    <div className="flex flex-1 items-center justify-end gap-2 text-right">
+                      <span className="font-medium">{name(f.home)}</span>
+                      <span className="text-2xl">{flag(f.home || "")}</span>
+                    </div>
+                    <span className="rounded bg-ink px-2 py-1 text-xs text-white/50">v</span>
+                    <div className="flex flex-1 items-center gap-2">
+                      <span className="text-2xl">{flag(f.away || "")}</span>
+                      <span className="font-medium">{name(f.away)}</span>
+                    </div>
                   </div>
-                  <span className="rounded bg-ink px-2 py-1 text-xs text-white/50">v</span>
-                  <div className="flex flex-1 items-center gap-2">
-                    <span className="text-2xl">{flag(f.away || "")}</span>
-                    <span className="font-medium">{name(f.away)}</span>
-                  </div>
-                  <div className="hidden w-40 shrink-0 text-right text-[11px] text-white/40 lg:block">
-                    Grp {f.group} · {f.city}
+                  <div className="mt-2 flex items-center justify-between border-t border-white/5 pt-2 text-[11px] text-white/40">
+                    <RestBadge rest={f.home_rest} />
+                    <span>Grp {f.group} · {f.city}</span>
+                    <RestBadge rest={f.away_rest} />
                   </div>
                 </div>
               ))}

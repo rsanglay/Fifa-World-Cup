@@ -28,6 +28,40 @@ from app.engine.match import MatchResult, TeamStrength, simulate
 
 GROUPS = list("ABCDEFGHIJKL")  # 12 groups
 HOST_COUNTRIES = {"USA", "MEX", "CAN"}
+# Rest / fatigue: a team turning around on short rest carries an Elo penalty.
+# What matters in a match is the rest *differential* between the two sides.
+NORMAL_REST_DAYS = 4          # a standard gap between fixtures
+FATIGUE_ELO_PER_DAY = 16.0    # Elo penalty per day short of normal
+FATIGUE_CAP = 48.0            # max penalty for an exhausted side
+
+
+def _days_between(date_a: str, date_b: str) -> Optional[int]:
+    """Whole days from date_b -> date_a (both 'YYYY-MM-DD'); None if unknown."""
+    from datetime import date
+    try:
+        return (date.fromisoformat(date_a) - date.fromisoformat(date_b)).days
+    except (ValueError, TypeError):
+        return None
+
+
+def fatigue_penalty(rest_days: Optional[int]) -> float:
+    """Elo penalty (>=0) for a side playing on `rest_days` days' rest."""
+    if rest_days is None:
+        return 0.0
+    short = max(0, NORMAL_REST_DAYS - rest_days)
+    return min(FATIGUE_CAP, short * FATIGUE_ELO_PER_DAY)
+
+
+def _net_fatigue_adv(
+    home: str, away: str, match_date: Optional[str], last_played: Dict[str, str]
+) -> float:
+    """Home-side Elo adjustment from the rest differential (home minus away)."""
+    if not match_date:
+        return 0.0
+    rest_h = _days_between(match_date, last_played[home]) if home in last_played else None
+    rest_a = _days_between(match_date, last_played[away]) if away in last_played else None
+    # A tired opponent helps the home side; a tired home side hurts it.
+    return fatigue_penalty(rest_a) - fatigue_penalty(rest_h)
 ROUND_ORDER = ["R32", "R16", "QF", "SF", "F"]
 ROUND_LABEL = {
     "groups": "Group stage",
@@ -128,17 +162,30 @@ def play_group(
     fixtures: List[dict],
     rng: np.random.Generator,
     venue_country: Dict[int, str],
+    last_played: Optional[Dict[str, str]] = None,
 ) -> tuple[List[TeamRecord], List[dict]]:
-    """Simulate one group's 6 matches; return sorted table + match log."""
+    """Simulate one group's 6 matches; return sorted table + match log.
+
+    Matches are played in date order so each team's rest (days since its
+    previous fixture) is tracked correctly via `last_played`.
+    """
+    if last_played is None:
+        last_played = {}
     records = {c: TeamRecord(c, group) for c in team_codes}
     log: List[dict] = []
-    for fx in fixtures:
+    ordered = sorted(fixtures, key=lambda f: (f.get("date", ""), f.get("match_no", 0)))
+    for fx in ordered:
         home, away = fx["home"], fx["away"]
         country = fx.get("country", "")
+        date = fx.get("date")
         h_adv = _home_adv(home, away, country)
+        h_adv += _net_fatigue_adv(home, away, date, last_played)
         res = simulate(strengths[home], strengths[away], rng, home_advantage=h_adv)
         records[home].apply(away, res.home_goals, res.away_goals)
         records[away].apply(home, res.away_goals, res.home_goals)
+        if date:
+            last_played[home] = date
+            last_played[away] = date
         log.append({
             "match_no": fx.get("match_no"), "group": group,
             "home": home, "away": away,
@@ -217,8 +264,11 @@ def build_knockout(
     strengths: Dict[str, TeamStrength],
     rng: np.random.Generator,
     knockout_meta: Optional[List[dict]] = None,
+    last_played: Optional[Dict[str, str]] = None,
 ) -> tuple[List[KnockoutMatch], str]:
     """Simulate the entire knockout phase; return all matches + champion."""
+    if last_played is None:
+        last_played = {}
     slot_map, _ = _resolve_qualifiers(group_tables)
     meta_by_no = {m["match_no"]: m for m in (knockout_meta or [])}
 
@@ -231,7 +281,7 @@ def build_knockout(
         km = KnockoutMatch(no, "R32",
                            home=slot_map.get(sh), away=slot_map.get(sa),
                            meta=meta_by_no.get(no, {}))
-        _play_ko(km, strengths, rng)
+        _play_ko(km, strengths, rng, last_played)
         r32.append(km)
     matches.extend(r32)
 
@@ -246,14 +296,14 @@ def build_knockout(
             away = prev[2 * k + 1].winner_code
             km = KnockoutMatch(no, rnd, home=home, away=away,
                                meta=meta_by_no.get(no, {}))
-            _play_ko(km, strengths, rng)
+            _play_ko(km, strengths, rng, last_played)
             cur.append(km)
         matches.extend(cur)
         if rnd == "SF":  # third-place play-off contested by the two SF losers
             tp = KnockoutMatch(start_no + count, "3P",
                                home=cur[0].loser_code, away=cur[1].loser_code,
                                meta=meta_by_no.get(start_no + count, {}))
-            _play_ko(tp, strengths, rng)
+            _play_ko(tp, strengths, rng, last_played)
             matches.append(tp)
             start_no = start_no + count + 1
         else:
@@ -268,11 +318,16 @@ def _play_ko(
     km: KnockoutMatch,
     strengths: Dict[str, TeamStrength],
     rng: np.random.Generator,
+    last_played: Optional[Dict[str, str]] = None,
 ) -> None:
     if not km.home or not km.away:
         return
+    if last_played is None:
+        last_played = {}
     country = km.meta.get("country", "")
+    date = km.meta.get("date")
     h_adv = _home_adv(km.home, km.away, country)
+    h_adv += _net_fatigue_adv(km.home, km.away, date, last_played)
     res = simulate(strengths[km.home], strengths[km.away], rng,
                    home_advantage=h_adv, knockout=True)
     km.result = res
@@ -280,3 +335,6 @@ def _play_ko(
         km.winner_code, km.loser_code = km.home, km.away
     else:
         km.winner_code, km.loser_code = km.away, km.home
+    if date:
+        last_played[km.home] = date
+        last_played[km.away] = date

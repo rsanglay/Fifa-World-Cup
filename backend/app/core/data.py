@@ -95,6 +95,44 @@ def _modelled_rating(team: dict, entry: dict, idx: int) -> int:
 
 
 @lru_cache(maxsize=1)
+def group_stage_with_rest() -> List[dict]:
+    """Group fixtures annotated with each team's days of rest before the match."""
+    from datetime import date
+
+    fixtures = load_fixtures().get("group_stage", [])
+    # Per team, the ordered dates of its group matches.
+    by_team: Dict[str, List[tuple]] = defaultdict(list)
+    for fx in fixtures:
+        for side in ("home", "away"):
+            if fx.get(side) and fx.get("date"):
+                by_team[fx[side]].append((fx["date"], fx["match_no"]))
+    prev_date: Dict[str, str] = {}
+    ordered_team_dates: Dict[str, List[str]] = {
+        t: [d for d, _ in sorted(v)] for t, v in by_team.items()
+    }
+    # Map (team, date) -> rest days vs that team's previous fixture.
+    rest_lookup: Dict[tuple, int] = {}
+    for team, dates in ordered_team_dates.items():
+        for i, d in enumerate(dates):
+            if i == 0:
+                continue
+            try:
+                rest_lookup[(team, d)] = (
+                    date.fromisoformat(d) - date.fromisoformat(dates[i - 1])
+                ).days
+            except ValueError:
+                pass
+
+    annotated: List[dict] = []
+    for fx in sorted(fixtures, key=lambda f: (f.get("date", ""), f.get("match_no", 0))):
+        out = dict(fx)
+        out["home_rest"] = rest_lookup.get((fx.get("home"), fx.get("date")))
+        out["away_rest"] = rest_lookup.get((fx.get("away"), fx.get("date")))
+        annotated.append(out)
+    return annotated
+
+
+@lru_cache(maxsize=1)
 def load_tournament() -> TournamentData:
     teams = load_teams()
     fixtures = load_fixtures()
@@ -121,5 +159,5 @@ def load_tournament() -> TournamentData:
 
 def reset_caches() -> None:
     for fn in (load_teams, load_venues, load_historical, load_fixtures,
-               load_squads, load_tournament):
+               load_squads, load_tournament, group_stage_with_rest):
         fn.cache_clear()

@@ -58,6 +58,10 @@ def simulate_once(
     strengths = _strengths(data, lineup_deltas)
     members = data.group_members()
 
+    # Shared rest tracker: team code -> date of its most recent match. Carries
+    # from the group stage into the knockouts so short turnarounds cost form.
+    last_played: Dict[str, str] = {}
+
     group_tables: Dict[str, List[TeamRecord]] = {}
     group_logs: List[dict] = []
     for g in GROUPS:
@@ -65,13 +69,13 @@ def simulate_once(
             continue
         table, log = play_group(
             g, members[g], strengths, data.group_fixtures.get(g, []),
-            rng, data.venue_country,
+            rng, data.venue_country, last_played,
         )
         group_tables[g] = table
         group_logs.extend(log)
 
     ko_matches, champion = build_knockout(
-        group_tables, strengths, rng, data.knockout_meta,
+        group_tables, strengths, rng, data.knockout_meta, last_played,
     )
 
     return {
