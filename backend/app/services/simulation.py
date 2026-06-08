@@ -56,7 +56,9 @@ def simulate_full(
     rng = np.random.default_rng(seed)
     result = simulate_once(data, rng, lineup_deltas)
     result["team_names"] = {c: t["name"] for c, t in data.teams.items()}
-    result["awards"] = attribute(result, load_squads(), seed=(seed or 0))
+    awards = attribute(result, load_squads(), seed=(seed or 0))
+    _merge_events(result, awards)
+    result["awards"] = awards
     return result
 
 
@@ -80,10 +82,12 @@ def manage_team_run(
     deltas = {team: float(delta_info.get("elo_delta", 0.0))}
     result = simulate_full(seed=seed, lineup_deltas=deltas)
     # Re-attribute so the managed team's stats reflect the chosen XI.
-    result["awards"] = attribute(
+    awards = attribute(
         result, load_squads(), seed=(seed or 0),
         managed_team=team, managed_xi=starting_xi or None,
     )
+    _merge_events(result, awards)
+    result["awards"] = awards
     result["managed_team"] = team
     result["lineup"] = delta_info
     result["journey"] = _team_journey(team, result)
@@ -105,6 +109,20 @@ def manage_team_odds(
             "simulations": simulations}
 
 
+def _merge_events(result: dict, awards: dict) -> None:
+    """Attach per-match scorers + fielded XIs onto each match in the result."""
+    events = awards.pop("match_events", {})
+    lineups = awards.pop("lineups", {})
+    for m in result.get("group_matches", []):
+        no = m.get("match_no")
+        m["events"] = events.get(no, {}).get("events", [])
+        m["lineups"] = lineups.get(no)
+    for m in result.get("knockout", []):
+        no = m.get("match_no")
+        m["events"] = events.get(no, {}).get("events", [])
+        m["lineups"] = lineups.get(no)
+
+
 def _team_journey(team: str, result: dict) -> List[dict]:
     """Extract the managed team's match-by-match path through the tournament."""
     journey: List[dict] = []
@@ -116,6 +134,7 @@ def _team_journey(team: str, result: dict) -> List[dict]:
                 "home": m["home"], "away": m["away"],
                 "home_name": names.get(m["home"]), "away_name": names.get(m["away"]),
                 "home_goals": m["home_goals"], "away_goals": m["away_goals"],
+                "events": m.get("events", []),
             })
     for m in result["knockout"]:
         if team in (m["home"], m["away"]):
@@ -126,6 +145,6 @@ def _team_journey(team: str, result: dict) -> List[dict]:
                 "home_goals": m["home_goals"], "away_goals": m["away_goals"],
                 "penalties": m.get("penalties"),
                 "home_pens": m.get("home_pens"), "away_pens": m.get("away_pens"),
-                "winner": m.get("winner"),
+                "winner": m.get("winner"), "events": m.get("events", []),
             })
     return journey
