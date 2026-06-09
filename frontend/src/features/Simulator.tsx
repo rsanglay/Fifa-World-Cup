@@ -12,6 +12,7 @@ import ShareButton from "../components/ShareButton";
 import { sound, isMuted, setMuted } from "../lib/sound";
 import CareerMode from "./CareerMode";
 import TournamentSpread from "../components/TournamentSpread";
+import { careerStore } from "../lib/careerStore";
 import type { GroupRow, LineupResult, OddsRow, SimResult, Team, TeamDetail } from "../types";
 
 type Mode = "menu" | "full" | "manage";
@@ -288,6 +289,9 @@ function ManageSim({ onBack }: { onBack: () => void }) {
   const [odds, setOdds] = useState<OddsRow | null>(null);
   const [busy, setBusy] = useState(false);
   const [career, setCareer] = useState(false);
+  const [resumeSid, setResumeSid] = useState<string | undefined>(undefined);
+  const active = careerStore.getActive();
+  const history = careerStore.getHistory();
 
   useEffect(() => {
     api.teams().then(setTeams);
@@ -332,7 +336,8 @@ function ManageSim({ onBack }: { onBack: () => void }) {
   const bench = detail?.squad.filter((p) => !xi.includes(p.id)) || [];
 
   if (career && code) {
-    return <CareerMode team={code} onExit={() => { setCareer(false); pickTeam(""); }} />;
+    return <CareerMode team={code} resumeSession={resumeSid}
+      onExit={() => { setCareer(false); setResumeSid(undefined); pickTeam(""); }} />;
   }
 
   return (
@@ -355,6 +360,33 @@ function ManageSim({ onBack }: { onBack: () => void }) {
         </select>
         {code && <span className="text-4xl">{flag(code)}</span>}
       </div>
+
+      {!code && active && (
+        <div className="card mb-4 flex flex-wrap items-center gap-3 p-4">
+          <span className="text-3xl">{flag(active.team)}</span>
+          <div className="flex-1">
+            <div className="font-semibold">Resume your {active.teamName} career</div>
+            <div className="text-xs text-white/40">Pick up where you left off (while the session is live).</div>
+          </div>
+          <button onClick={() => { setResumeSid(active.sessionId); setCode(active.team); setCareer(true); }} className="btn-primary text-sm">▶ Resume</button>
+          <button onClick={() => { careerStore.clearActive(); pickTeam(""); }} className="btn-ghost text-sm">Discard</button>
+        </div>
+      )}
+
+      {!code && history.length > 0 && (
+        <div className="card mb-4 p-4">
+          <div className="mb-2 font-display text-lg tracking-wide text-gold">🏆 TROPHY CABINET</div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {history.slice(0, 6).map((h, i) => (
+              <div key={i} className="flex items-center gap-2 rounded-lg bg-ink/50 px-3 py-2 text-sm">
+                <span className="text-xl">{flag(h.team)}</span>
+                <span className="flex-1 truncate">{h.teamName}</span>
+                <span className={h.won ? "text-gold" : "text-white/50"}>{h.won ? "🏆 Champions" : h.outcome}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {!detail && code && <div className="skel h-64" />}
 

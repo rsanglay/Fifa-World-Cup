@@ -58,6 +58,8 @@ export const api = {
     post<{ session_id: string; state: ManagedState }>("/manage/play", { session_id, starting_xi, mentality }),
   manageSecondHalf: (session_id: string, mentality: string) =>
     post<{ session_id: string; state: ManagedState }>("/manage/second-half", { session_id, mentality }),
+  manageGet: (session_id: string) =>
+    get<{ session_id: string; state: ManagedState }>(`/manage/session/${session_id}`),
   modelDiagnostics: () => get<any>("/model/diagnostics"),
   realityOdds: (results: Record<string, [number, number]>, simulations = 2500) =>
     post<{ simulations: number; fixed_count: number; teams: OddsRow[]; standings: Record<string, any[]> }>(

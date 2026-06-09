@@ -5,6 +5,7 @@ import LineupPicker from "../components/LineupPicker";
 import Confetti from "../components/Confetti";
 import ShareButton from "../components/ShareButton";
 import { sound } from "../lib/sound";
+import { careerStore } from "../lib/careerStore";
 import type { ManagedMatch, ManagedSquadPlayer, ManagedState, MatchEvent, Player } from "../types";
 
 const FORMATIONS: Record<string, [number, number, number]> = {
@@ -30,7 +31,7 @@ function pickXI(squad: ManagedSquadPlayer[], formation: string): string[] {
 
 type UIPhase = "select" | "firsthalf" | "halftime" | "secondhalf" | "result";
 
-export default function CareerMode({ team, onExit }: { team: string; onExit: () => void }) {
+export default function CareerMode({ team, onExit, resumeSession }: { team: string; onExit: () => void; resumeSession?: string }) {
   const [sid, setSid] = useState("");
   const [state, setState] = useState<ManagedState | null>(null);
   const [xi, setXi] = useState<string[]>([]);
@@ -43,10 +44,30 @@ export default function CareerMode({ team, onExit }: { team: string; onExit: () 
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.manageStart(team).then((r) => {
+    const onReady = (r: { session_id: string; state: ManagedState }) => {
       setSid(r.session_id); setState(r.state); setXi(pickXI(r.state.squad, "4-3-3"));
-    }).catch((e) => setError(String(e?.message || e)));
-  }, [team]);
+      careerStore.setActive({ sessionId: r.session_id, team, teamName: r.state.team_name });
+    };
+    const p = resumeSession
+      ? api.manageGet(resumeSession).catch(() => api.manageStart(team))
+      : api.manageStart(team);
+    p.then(onReady).catch((e) => setError(String(e?.message || e)));
+  }, [team, resumeSession]);
+
+  // Record completed careers to the trophy cabinet, then clear the active run.
+  const recorded = useRef(false);
+  useEffect(() => {
+    if (state?.done && !recorded.current) {
+      recorded.current = true;
+      careerStore.addRecord({
+        team, teamName: state.team_name,
+        outcome: state.won ? "Champions" : roundName(state.eliminated_round || "groups"),
+        won: state.won, avgRating: state.avg_rating, achievements: state.achievements.length,
+        when: state.team_name,
+      });
+      careerStore.clearActive();
+    }
+  }, [state?.done]); // eslint-disable-line
 
   const suspended = useMemo(() => new Set((state?.squad || []).filter((p) => p.suspended).map((p) => p.id)), [state]);
   useEffect(() => { if (xi.some((id) => suspended.has(id))) setXi((c) => c.filter((id) => !suspended.has(id))); }, [suspended]); // eslint-disable-line
