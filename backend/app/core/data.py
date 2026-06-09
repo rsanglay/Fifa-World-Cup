@@ -54,16 +54,6 @@ def load_player_meta() -> Dict[str, dict]:
 
 
 @lru_cache(maxsize=1)
-def load_baseline_odds() -> dict:
-    """Precomputed 10k-sim tournament odds (scripts regenerate). Served instantly
-    so page loads don't trigger live Monte-Carlo on small/free hosts."""
-    try:
-        return _load("baseline_odds.json")
-    except FileNotFoundError:
-        return {}
-
-
-@lru_cache(maxsize=1)
 def load_career_stats() -> Dict[str, dict]:
     """Player name -> {caps, goals} real international stats (687 top players)."""
     try:
@@ -209,7 +199,7 @@ def load_tournament() -> TournamentData:
 def reset_caches() -> None:
     for fn in (load_teams, load_venues, load_historical, load_fixtures,
                load_squads, load_tournament, group_stage_with_rest,
-               load_player_meta, load_career_stats, load_baseline_odds):
+               load_player_meta, load_career_stats):
         fn.cache_clear()
 
 

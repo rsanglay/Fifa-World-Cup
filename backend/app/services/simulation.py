@@ -6,8 +6,9 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
-from app.core.data import load_baseline_odds, load_squads, load_tournament
+from app.core.data import load_squads, load_tournament
 from app.engine.match import TeamStrength, predict as predict_match
+from app.engine.fast_odds import monte_carlo_fast
 from app.engine.playerstats import attribute
 from app.engine.simulator import monte_carlo, simulate_once
 from app.engine.squad import lineup_delta
@@ -15,16 +16,14 @@ from app.engine.squad import lineup_delta
 
 @lru_cache(maxsize=8)
 def cached_odds(simulations: int = 5000) -> dict:
-    """Baseline tournament odds (full-strength teams).
+    """Live tournament odds via the vectorised fast engine.
 
-    Serves the precomputed 10k-sim file instantly when present (keeps page loads
-    fast on small/free hosts); falls back to a live Monte-Carlo run otherwise.
+    Computes fresh each (uncached) call — even 10k sims run in well under a
+    second — so the numbers are genuinely live, not a static file. lru_cache only
+    de-dupes identical back-to-back requests.
     """
-    baseline = load_baseline_odds()
-    if baseline and baseline.get("teams"):
-        return baseline
     data = load_tournament()
-    return monte_carlo(data, n=simulations, seed=2026)
+    return monte_carlo_fast(data, n=simulations, seed=2026)
 
 
 def predict_single(home: str, away: str, neutral: bool = True) -> dict:
@@ -117,10 +116,10 @@ def manage_team_odds(
         raise KeyError(f"Unknown team code: {team}")
     delta_info = compute_lineup(team, starting_xi) if starting_xi else {"elo_delta": 0.0}
     deltas = {team: float(delta_info.get("elo_delta", 0.0))}
-    mc = monte_carlo(data, n=simulations, lineup_deltas=deltas, seed=7)
+    mc = monte_carlo_fast(data, n=max(simulations, 8000), seed=7, elo_overrides=deltas)
     team_row = next((t for t in mc["teams"] if t["code"] == team), None)
     return {"team": team, "lineup": delta_info, "odds": team_row,
-            "simulations": simulations}
+            "simulations": mc["simulations"]}
 
 
 def model_diagnostics() -> dict:
@@ -175,9 +174,9 @@ def reality_odds(results: dict, simulations: int = 2000) -> dict:
             fixed[int(k)] = (int(v[0]), int(v[1]))
         except (ValueError, TypeError, IndexError):
             continue
-    mc = monte_carlo(data, n=simulations, seed=2026, fixed_results=fixed)
+    mc = monte_carlo_fast(data, n=max(simulations, 8000), seed=2026, fixed_results=fixed)
     return {
-        "simulations": simulations,
+        "simulations": mc["simulations"],
         "fixed_count": len(fixed),
         "teams": mc["teams"],
         "standings": _standings_from_results(data, fixed),

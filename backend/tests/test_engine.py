@@ -63,6 +63,30 @@ def test_monte_carlo_probabilities_bounded():
         assert t["p_title"] <= t["p_final"] + 1e-9
 
 
+def test_fast_odds_bounded_and_calibrated():
+    from app.engine.fast_odds import monte_carlo_fast
+    data = load_tournament()
+    mc = monte_carlo_fast(data, n=3000, seed=1)
+    assert len(mc["teams"]) == 48
+    total_title = sum(t["p_title"] for t in mc["teams"])
+    assert 0.95 < total_title < 1.05  # exactly one champion per sim
+    for t in mc["teams"]:
+        assert t["p_round_of_16"] <= t["p_round_of_32"] + 1e-9
+        assert t["p_title"] <= t["p_final"] + 1e-9
+    # Favourite is concentrated but not absurd (48-team field).
+    assert 0.12 < mc["teams"][0]["p_title"] < 0.40
+
+
+def test_fast_odds_elo_override_raises_odds():
+    from app.engine.fast_odds import monte_carlo_fast
+    data = load_tournament()
+    base = monte_carlo_fast(data, n=3000, seed=2)
+    boosted = monte_carlo_fast(data, n=3000, seed=2, elo_overrides={"ENG": 300})
+    p_base = next(t["p_title"] for t in base["teams"] if t["code"] == "ENG")
+    p_boost = next(t["p_title"] for t in boosted["teams"] if t["code"] == "ENG")
+    assert p_boost > p_base  # a stronger England wins more often
+
+
 def test_lineup_delta_monotonic():
     """A weaker XI must never score better than the optimal XI."""
     squad = generate_squad("TST", 1800)
