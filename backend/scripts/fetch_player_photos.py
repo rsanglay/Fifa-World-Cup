@@ -58,14 +58,44 @@ def _parse(data: dict) -> tuple[str, int | None]:
     return photo, age
 
 
-def resolve(name: str) -> dict:
-    for variant in (name, f"{name} (footballer)", f"{name} (soccer)"):
+OPENSEARCH = "https://en.wikipedia.org/w/api.php"
+
+
+def _opensearch_title(name: str) -> str | None:
+    """Use Wikipedia search to find the right page title for a player."""
+    import urllib.parse
+    params = urllib.parse.urlencode({
+        "action": "opensearch", "search": f"{name} footballer",
+        "limit": "1", "namespace": "0", "format": "json",
+    })
+    req = urllib.request.Request(f"{OPENSEARCH}?{params}", headers={"User-Agent": UA})
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.load(resp)
+        titles = data[1] if len(data) > 1 else []
+        return titles[0] if titles else None
+    except Exception:
+        return None
+
+
+def resolve(name: str, deep: bool = False) -> dict:
+    variants = [name, f"{name} (footballer)", f"{name} (soccer)"]
+    for variant in variants:
         data = _fetch(variant)
         if data:
             photo, age = _parse(data)
             if photo or age is not None:
                 return {"photo": photo, "age": age}
         time.sleep(0.05)
+    # Last resort: let Wikipedia's search engine find the page title.
+    if deep:
+        title = _opensearch_title(name)
+        if title and title.lower() not in (v.lower() for v in variants):
+            data = _fetch(title)
+            if data:
+                photo, age = _parse(data)
+                if photo or age is not None:
+                    return {"photo": photo, "age": age}
     return {"photo": "", "age": None}
 
 
@@ -73,6 +103,8 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--force", action="store_true")
     ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--retry-blanks", action="store_true",
+                    help="re-resolve only players with no photo, via Wikipedia search")
     args = ap.parse_args()
 
     squads = json.loads(SQUADS.read_text())
@@ -91,9 +123,17 @@ def main() -> int:
 
     total = len(names)
     for i, name in enumerate(names, 1):
-        if not args.force and name in out:
-            continue
-        out[name] = resolve(name)
+        if args.retry_blanks:
+            # Only re-attempt players we have no photo for, using deep search.
+            if out.get(name, {}).get("photo"):
+                continue
+            res = resolve(name, deep=True)
+            if res.get("photo") or res.get("age") is not None:
+                out[name] = res
+        else:
+            if not args.force and name in out:
+                continue
+            out[name] = resolve(name)
         if i % 25 == 0 or i == total:
             OUT.write_text(json.dumps(out, ensure_ascii=False, indent=1))
             photos = sum(1 for v in out.values() if v.get("photo"))

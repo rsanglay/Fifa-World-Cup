@@ -31,3 +31,13 @@ class TournamentSimRequest(BaseModel):
     seed: Optional[int] = None
     # Optional manual Elo nudges per team code (advanced / what-if).
     elo_overrides: Optional[dict] = None
+
+
+class ManageStartRequest(BaseModel):
+    team: str
+    seed: Optional[int] = None
+
+
+class ManagePlayRequest(BaseModel):
+    session_id: str
+    starting_xi: List[str] = Field(default_factory=list)

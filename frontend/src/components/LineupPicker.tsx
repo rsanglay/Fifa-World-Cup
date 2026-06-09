@@ -25,12 +25,14 @@ export default function LineupPicker({
   formation,
   onToggle,
   onFormation,
+  unavailable,
 }: {
   squad: Player[];
   selected: string[];
   formation: string;
   onToggle: (id: string) => void;
   onFormation: (f: string) => void;
+  unavailable?: Set<string>;
 }) {
   const [d, m, f] = FORMATIONS[formation];
   const need: Record<string, number> = { GK: 1, DEF: d, MID: m, FWD: f };
@@ -76,7 +78,8 @@ export default function LineupPicker({
               <div className="max-h-56 space-y-1 overflow-y-auto pr-1">
                 {byPos[pos].map((p) => {
                   const on = selected.includes(p.id);
-                  const blocked = !on && full;
+                  const banned = unavailable?.has(p.id) ?? false;
+                  const blocked = banned || (!on && full);
                   return (
                     <button
                       key={p.id}
@@ -85,6 +88,8 @@ export default function LineupPicker({
                       className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition ${
                         on
                           ? "bg-pitch/40 ring-1 ring-pitch"
+                          : banned
+                          ? "cursor-not-allowed bg-red-500/10 opacity-50"
                           : blocked
                           ? "cursor-not-allowed opacity-30"
                           : "bg-ink/50 hover:bg-white/10"
@@ -96,9 +101,10 @@ export default function LineupPicker({
                           {p.number ? <span className="text-[10px] text-white/40">#{p.number}</span> : null}
                           <span className="truncate">{p.name}</span>
                           {p.tier === "star" && <span className="text-[10px]">⭐</span>}
+                          {banned && <span className="text-[10px]">🚫</span>}
                         </div>
                         <div className="truncate text-[10px] text-white/30">
-                          {p.club}{p.age ? ` · ${p.age}y` : ""}{p.caps ? ` · ${p.caps} caps` : ""}
+                          {banned ? "Suspended" : `${p.club}${p.age ? ` · ${p.age}y` : ""}${p.caps ? ` · ${p.caps} caps` : ""}`}
                         </div>
                       </div>
                       <span className="w-7 rounded bg-ink px-1 text-center text-xs font-bold tabular-nums text-gold">

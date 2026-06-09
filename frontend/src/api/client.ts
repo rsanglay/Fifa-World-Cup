@@ -2,6 +2,7 @@ import type {
   Fixture,
   GroupRow,
   LineupResult,
+  ManagedState,
   MatchPrediction,
   OddsRow,
   SimResult,
@@ -48,6 +49,10 @@ export const api = {
       "/manage/odds",
       { team, starting_xi }
     ),
+  manageStart: (team: string, seed?: number) =>
+    post<{ session_id: string; state: ManagedState }>("/manage/start", { team, seed }),
+  managePlay: (session_id: string, starting_xi: string[]) =>
+    post<{ session_id: string; state: ManagedState }>("/manage/play", { session_id, starting_xi }),
 };
 
 // FIFA 3-letter code -> ISO-3166 alpha-2 (for flag emoji).

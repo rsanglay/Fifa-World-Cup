@@ -8,8 +8,8 @@
   "age": null
  },
  "Raul Rangel": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/Ra%C3%BAl_Rangel.png/500px-Ra%C3%BAl_Rangel.png",
+  "age": 26
  },
  "Cesar Montes": {
   "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/C%C3%A9sar_Montes.png/500px-C%C3%A9sar_Montes.png",
@@ -92,8 +92,8 @@
   "age": null
  },
  "Roberto Alvarado": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Roberto_Alvarado.png/500px-Roberto_Alvarado.png",
+  "age": 28
  },
  "Henry Martin": {
   "photo": "",
@@ -169,7 +169,7 @@
  },
  "Themba Zwane": {
   "photo": "",
-  "age": null
+  "age": 37
  },
  "Sibongiseni Mthethwa": {
   "photo": "",
@@ -232,8 +232,8 @@
   "age": null
  },
  "Kim Moon-hwan": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/da/191202_K%EB%A6%AC%EA%B7%B8_%EC%8B%9C%EC%83%81%EC%8B%9D%2C_%EA%B9%80%EB%AC%B8%ED%99%98_3.jpg/500px-191202_K%EB%A6%AC%EA%B7%B8_%EC%8B%9C%EC%83%81%EC%8B%9D%2C_%EA%B9%80%EB%AC%B8%ED%99%98_3.jpg",
+  "age": 31
  },
  "Lee Myung-jae": {
   "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/241110_FC_%EC%84%9C%EC%9A%B8_vs_%EC%9A%B8%EC%82%B0_%28%EC%9D%B4%EB%AA%85%EC%9E%AC%29.jpg/500px-241110_FC_%EC%84%9C%EC%9A%B8_vs_%EC%9A%B8%EC%82%B0_%28%EC%9D%B4%EB%AA%85%EC%9E%AC%29.jpg",
@@ -252,8 +252,8 @@
   "age": 28
  },
  "Hwang In-beom": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/240611_%EB%8C%80%ED%95%9C%EB%AF%BC%EA%B5%AD_vs_%EC%A4%91%EA%B5%AD_%28%ED%99%A9%EC%9D%B8%EB%B2%94%29.jpg/500px-240611_%EB%8C%80%ED%95%9C%EB%AF%BC%EA%B5%AD_vs_%EC%A4%91%EA%B5%AD_%28%ED%99%A9%EC%9D%B8%EB%B2%94%29.jpg",
+  "age": 30
  },
  "Park Yong-woo": {
   "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bb/Park_Yong-woo_20251215.png/500px-Park_Yong-woo_20251215.png",
@@ -348,31 +348,31 @@
   "age": null
  },
  "Jaroslav Zeleny": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Jaroslav_Zelen%C3%BD%2C_FCB-SLAVIA_30092018.jpg/500px-Jaroslav_Zelen%C3%BD%2C_FCB-SLAVIA_30092018.jpg",
+  "age": 34
  },
  "Martin Vitik": {
   "photo": "",
   "age": null
  },
  "Tomas Soucek": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d6/Tom%C3%A1%C5%A1_Sou%C4%8Dek_WHU.jpeg/500px-Tom%C3%A1%C5%A1_Sou%C4%8Dek_WHU.jpeg",
+  "age": 31
  },
  "Lukas Provod": {
   "photo": "",
   "age": null
  },
  "Pavel Sulc": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Pavel_%C5%A0ulc_%28cropped%29.jpg/500px-Pavel_%C5%A0ulc_%28cropped%29.jpg",
+  "age": 26
  },
  "Antonin Barak": {
   "photo": "",
   "age": null
  },
  "Michal Sadilek": {
-  "photo": "",
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/98/Michal_Sad%C3%ADlek%2C_U21_CZE-GRE_2019-10-10_%282%29.jpg/500px-Michal_Sad%C3%ADlek%2C_U21_CZE-GRE_2019-10-10_%282%29.jpg",
   "age": null
  },
  "Vaclav Cerny": {
@@ -420,24 +420,24 @@
   "age": null
  },
  "Dayne St. Clair": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/78/Dayne_St._Clair_-_MNUFC_-_May_2025.jpg/500px-Dayne_St._Clair_-_MNUFC_-_May_2025.jpg",
+  "age": 29
  },
  "Tom McGill": {
   "photo": "",
-  "age": null
+  "age": 26
  },
  "Alphonso Davies": {
   "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/ff/Alphonso_Davies_in_2022.jpg/500px-Alphonso_Davies_in_2022.jpg",
   "age": 26
  },
  "Moise Bombito": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/Bombito_asse_ogcn_2425.png/500px-Bombito_asse_ogcn_2425.png",
+  "age": 26
  },
  "Derek Cornelius": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Cornelius_asse_om_2425.png/500px-Cornelius_asse_om_2425.png",
+  "age": 29
  },
  "Alistair Johnston": {
   "photo": "https://upload.wikimedia.org/wikipedia/commons/6/6b/A_Johnston_Canada_national_football_team_WC2022_%28cropped%29.jpg",
@@ -517,7 +517,7 @@
  },
  "Niko Sigur": {
   "photo": "",
-  "age": null
+  "age": 23
  },
  "Nikola Vasilj": {
   "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/2025-04-23_-_FC_St_Pauli_-_Nikola_Vasilj.jpg/500px-2025-04-23_-_FC_St_Pauli_-_Nikola_Vasilj.jpg",
@@ -532,16 +532,16 @@
   "age": null
  },
  "Sead Kolasinac": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/06/Kolasinac_2015.jpg/500px-Kolasinac_2015.jpg",
+  "age": 33
  },
  "Nikola Katic": {
   "photo": "",
   "age": null
  },
  "Dennis Hadzikadunic": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Dennis_Had%C5%BEikaduni%C4%87_2021.jpg/500px-Dennis_Had%C5%BEikaduni%C4%87_2021.jpg",
+  "age": 28
  },
  "Adnan Bajic": {
   "photo": "",
@@ -576,28 +576,28 @@
   "age": null
  },
  "Benjamin Tahirovic": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Benjamin_Tahirovic_for_Br%C3%B8ndby.jpg/500px-Benjamin_Tahirovic_for_Br%C3%B8ndby.jpg",
+  "age": 23
  },
  "Amar Memic": {
   "photo": "",
-  "age": null
+  "age": 25
  },
  "Dal Varesanovic": {
   "photo": "",
-  "age": null
+  "age": 25
  },
  "Edin Dzeko": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/20150331_2026_AUT_BIH_2177_Edin_D%C5%BEeko_%28cropped%29.jpg/500px-20150331_2026_AUT_BIH_2177_Edin_D%C5%BEeko_%28cropped%29.jpg",
+  "age": 40
  },
  "Ermedin Demirovic": {
   "photo": "",
   "age": 28
  },
  "Smail Prevljak": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/FC_RB_Salzburg_gegen_SCR_Altach_%285._Oktober_2019%29_85.jpg/500px-FC_RB_Salzburg_gegen_SCR_Altach_%285._Oktober_2019%29_85.jpg",
+  "age": 31
  },
  "Haris Tabakovic": {
   "photo": "",
@@ -636,12 +636,12 @@
   "age": null
  },
  "Pedro Miguel": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/9/9f/R%C3%B3-R%C3%B3%2C_Qatar_v_Japan_%E2%80%93_AFC_Asian_Cup_2019_final_29_%28crop%29.jpg",
+  "age": 36
  },
  "Boualem Khoukhi": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Boualem_Khoukhi.png/500px-Boualem_Khoukhi.png",
+  "age": 36
  },
  "Tarek Salman": {
   "photo": "https://upload.wikimedia.org/wikipedia/commons/7/76/Tarek_Salman.jpg",
@@ -656,8 +656,8 @@
   "age": null
  },
  "Jassem Gaber": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/d/d7/Asian_Nations_Cup_Iran_-_Qatar_%285%29_%28cropped%29.jpg",
+  "age": 24
  },
  "Mohammed Emad": {
   "photo": "",
@@ -668,8 +668,8 @@
   "age": 30
  },
  "Karim Boudiaf": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Karim_Boudiaf_2011_1.jpg/500px-Karim_Boudiaf_2011_1.jpg",
+  "age": 36
  },
  "Abdulaziz Hatem": {
   "photo": "https://upload.wikimedia.org/wikipedia/commons/2/20/Abdulaziz_Hatem.jpg",
@@ -821,7 +821,7 @@
  },
  "Andi Zeqiri": {
   "photo": "",
-  "age": null
+  "age": 27
  },
  "Bilal Touati": {
   "photo": "",
@@ -829,7 +829,7 @@
  },
  "Lucas Blondel": {
   "photo": "",
-  "age": null
+  "age": 30
  },
  "Alisson": {
   "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/20180610_FIFA_Friendly_Match_Austria_vs._Brazil_850_1625.jpg/500px-20180610_FIFA_Friendly_Match_Austria_vs._Brazil_850_1625.jpg",
@@ -932,8 +932,8 @@
   "age": null
  },
  "Gabriel Martinelli": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/df/1_Gabriel_Martinelli_arsenal_2025_%28cropped%29.jpg/500px-1_Gabriel_Martinelli_arsenal_2025_%28cropped%29.jpg",
+  "age": 25
  },
  "Yassine Bounou": {
   "photo": "",
@@ -992,16 +992,16 @@
   "age": 22
  },
  "Amir Richardson": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/aa/AmirRichardson.jpg/500px-AmirRichardson.jpg",
+  "age": 24
  },
  "Neil El Aynaoui": {
   "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Neil_El_Aynaoui_%28cropped2%29.jpg/500px-Neil_El_Aynaoui_%28cropped2%29.jpg",
   "age": 25
  },
  "Ismael Saibari": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Ismael_Saibari_vs_Niger_%28cropped%29.jpg/500px-Ismael_Saibari_vs_Niger_%28cropped%29.jpg",
+  "age": 25
  },
  "Hakim Ziyech": {
   "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Hakim_Ziyech_2021.jpg/500px-Hakim_Ziyech_2021.jpg",
@@ -1016,24 +1016,24 @@
   "age": 29
  },
  "Soufiane Rahimi": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Soufiane_Rahimi_against_Paraguay_%28cropped%29.jpg/500px-Soufiane_Rahimi_against_Paraguay_%28cropped%29.jpg",
+  "age": 30
  },
  "Ayoub El Kaabi": {
   "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/Ayoub_El_Kaabi_vs_Niger_%28cropped%29.jpg/500px-Ayoub_El_Kaabi_vs_Niger_%28cropped%29.jpg",
   "age": 33
  },
  "Eliesse Ben Seghir": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/Eliesse_Ben_Seghir_vs_Niger_%28cropped_2%29.jpg/500px-Eliesse_Ben_Seghir_vs_Niger_%28cropped_2%29.jpg",
+  "age": 21
  },
  "Abde Ezzalzouli": {
   "photo": "",
-  "age": null
+  "age": 25
  },
  "Amine Adli": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/ff/Amine_Adli_27122025_%284%29.jpg/500px-Amine_Adli_27122025_%284%29.jpg",
+  "age": 26
  },
  "Chadi Riad": {
   "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f0/Chadi_Riad_against_Paraguay_%28cropped%29.jpg/500px-Chadi_Riad_against_Paraguay_%28cropped%29.jpg",
@@ -1096,8 +1096,8 @@
   "age": 28
  },
  "Allan Saint-Maximin": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/Allan_Saint-Maximin.png/500px-Allan_Saint-Maximin.png",
+  "age": 29
  },
  "Derrick Etienne": {
   "photo": "",

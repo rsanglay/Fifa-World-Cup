@@ -14,10 +14,13 @@ from app.core.data import (
 from app.engine.squad import FORMATIONS, best_xi
 from app.schemas import (
     LineupRequest,
+    ManagePlayRequest,
     ManageSimRequest,
+    ManageStartRequest,
     MatchPredictRequest,
     TournamentSimRequest,
 )
+from app.services import manage_session
 from app.services import simulation as sim
 
 router = APIRouter()
@@ -120,5 +123,30 @@ def manage_simulate(req: ManageSimRequest):
 def manage_odds(req: ManageSimRequest):
     try:
         return sim.manage_team_odds(req.team.upper(), req.starting_xi)
+    except KeyError as e:
+        raise HTTPException(404, str(e))
+
+
+# ------------------------- round-by-round manage -------------------------- #
+@router.post("/manage/start")
+def manage_start(req: ManageStartRequest):
+    try:
+        return manage_session.start(req.team.upper(), req.seed)
+    except KeyError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.post("/manage/play")
+def manage_play(req: ManagePlayRequest):
+    try:
+        return manage_session.play(req.session_id, req.starting_xi)
+    except KeyError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.get("/manage/session/{session_id}")
+def manage_get(session_id: str):
+    try:
+        return manage_session.get(session_id)
     except KeyError as e:
         raise HTTPException(404, str(e))

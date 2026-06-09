@@ -10,6 +10,7 @@ import MatchModal, { MatchData } from "../components/MatchModal";
 import Confetti from "../components/Confetti";
 import ShareButton from "../components/ShareButton";
 import { sound, isMuted, setMuted } from "../lib/sound";
+import CareerMode from "./CareerMode";
 import type { GroupRow, LineupResult, OddsRow, SimResult, Team, TeamDetail } from "../types";
 
 type Mode = "menu" | "full" | "manage";
@@ -285,6 +286,7 @@ function ManageSim({ onBack }: { onBack: () => void }) {
   const [result, setResult] = useState<SimResult | null>(null);
   const [odds, setOdds] = useState<OddsRow | null>(null);
   const [busy, setBusy] = useState(false);
+  const [career, setCareer] = useState(false);
 
   useEffect(() => {
     api.teams().then(setTeams);
@@ -328,6 +330,10 @@ function ManageSim({ onBack }: { onBack: () => void }) {
 
   const bench = detail?.squad.filter((p) => !xi.includes(p.id)) || [];
 
+  if (career && code) {
+    return <CareerMode team={code} onExit={() => { setCareer(false); pickTeam(""); }} />;
+  }
+
   return (
     <div>
       <div className="mb-4 flex items-center gap-3">
@@ -370,14 +376,26 @@ function ManageSim({ onBack }: { onBack: () => void }) {
                 Auto-pick best XI
               </button>
               <button
+                onClick={() => setCareer(true)}
+                className="btn-primary"
+                title="Play every match yourself, round by round"
+              >
+                🎮 Career mode
+              </button>
+              <button
                 onClick={simulate}
                 disabled={xi.length !== 11 || busy}
-                className="btn-primary"
+                className="btn-ghost"
               >
-                {busy ? "Playing…" : "▶ Play my World Cup"}
+                {busy ? "Playing…" : "⚡ Quick sim"}
               </button>
             </div>
           </div>
+          <p className="-mt-2 text-xs text-white/40">
+            <strong className="text-white/60">Career mode</strong>: pick your XI for every match, manage
+            suspensions &amp; rotation, and live the whole run. <strong className="text-white/60">Quick
+            sim</strong>: one XI, whole tournament at once.
+          </p>
 
           <LineupPicker
             squad={detail.squad}

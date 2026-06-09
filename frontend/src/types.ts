@@ -193,6 +193,50 @@ export interface LineupResult {
   team?: string;
 }
 
+export interface ManagedSquadPlayer {
+  id: string;
+  name: string;
+  position: "GK" | "DEF" | "MID" | "FWD";
+  number: number;
+  rating: number;
+  club: string;
+  photo_url?: string;
+  suspended: boolean;
+  yellows: number;
+}
+
+export interface ManagedMatch {
+  round: string;
+  home: string;
+  away: string;
+  home_goals: number;
+  away_goals: number;
+  penalties?: boolean;
+  home_pens?: number | null;
+  away_pens?: number | null;
+  winner?: string | null;
+  date?: string;
+}
+
+export interface ManagedState {
+  team: string;
+  team_name: string;
+  group: string;
+  phase: "group" | "knockout" | "done";
+  alive: boolean;
+  eliminated_round: string | null;
+  champion: string | null;
+  champion_name: string | null;
+  group_table: GroupRow[];
+  next_fixture: { stage: string; opponent: string; date?: string; venue?: string; city?: string } | null;
+  last_round: ManagedMatch[];
+  journey: ManagedMatch[];
+  squad: ManagedSquadPlayer[];
+  team_names: Record<string, string>;
+  done: boolean;
+  won: boolean;
+}
+
 export interface JourneyMatch {
   stage: string;
   round: string;
