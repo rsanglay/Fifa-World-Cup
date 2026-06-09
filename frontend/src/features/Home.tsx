@@ -42,7 +42,7 @@ export default function Home() {
             <Link to="/simulator" className="btn-primary">
               ▶ Launch Simulator
             </Link>
-            <Link to="/odds" className="btn-ghost">
+            <Link to="/predict?tab=odds" className="btn-ghost">
               View Title Odds
             </Link>
           </div>
@@ -90,8 +90,8 @@ export default function Home() {
 
       <section className="grid gap-4 md:grid-cols-3">
         {[
-          ["⚽", "Match Predictor", "Win / draw / loss + most-likely scoreline for any two teams.", "/predict"],
-          ["📊", "Title Odds", "Monte-Carlo odds to reach each round and lift the cup.", "/odds"],
+          ["⚽", "Match Predictor", "Win / draw / loss + most-likely scoreline for any two teams.", "/predict?tab=match"],
+          ["📊", "Title Odds", "Monte-Carlo odds to reach each round and lift the cup.", "/predict?tab=odds"],
           ["🎮", "Manage a Nation", "Pick your XI and bench, then live your tournament out.", "/simulator"],
         ].map(([icon, title, desc, to]) => (
           <Link to={to as string} key={title as string} className="card p-5 transition hover:border-gold/40">

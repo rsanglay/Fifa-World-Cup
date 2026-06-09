@@ -1,27 +1,18 @@
 import { lazy, Suspense, useState } from "react";
-import { NavLink, Route, Routes, useLocation } from "react-router-dom";
+import { NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import Home from "./features/Home";
 import ErrorBoundary from "./components/ErrorBoundary";
 
-// Lazy-load the heavier routes so the initial bundle stays small — the
-// Simulator alone pulls in the cinematic engine, confetti, audio, etc.
-const Teams = lazy(() => import("./features/Teams"));
-const Groups = lazy(() => import("./features/Groups"));
-const Fixtures = lazy(() => import("./features/Fixtures"));
-const Odds = lazy(() => import("./features/Odds"));
-const MatchPredictor = lazy(() => import("./features/MatchPredictor"));
+// Lazy-load the heavier hubs so the initial bundle stays small.
+const TournamentHub = lazy(() => import("./features/TournamentHub"));
+const PredictHub = lazy(() => import("./features/PredictHub"));
 const Simulator = lazy(() => import("./features/Simulator"));
-const Reality = lazy(() => import("./features/Reality"));
 
 const NAV = [
   { to: "/", label: "Home", end: true },
-  { to: "/teams", label: "Teams" },
-  { to: "/groups", label: "Groups" },
-  { to: "/fixtures", label: "Fixtures" },
-  { to: "/odds", label: "Title Odds" },
-  { to: "/predict", label: "Match Predictor" },
+  { to: "/tournament", label: "Tournament" },
+  { to: "/predict", label: "Predict" },
   { to: "/simulator", label: "Simulator" },
-  { to: "/what-if", label: "What-If Lab" },
 ];
 
 export default function App() {
@@ -77,13 +68,17 @@ export default function App() {
           <Suspense fallback={<div className="skel h-64" />}>
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/teams" element={<Teams />} />
-            <Route path="/groups" element={<Groups />} />
-            <Route path="/fixtures" element={<Fixtures />} />
-            <Route path="/odds" element={<Odds />} />
-            <Route path="/predict" element={<MatchPredictor />} />
+            <Route path="/tournament" element={<TournamentHub />} />
+            <Route path="/predict" element={<PredictHub />} />
             <Route path="/simulator" element={<Simulator />} />
-            <Route path="/what-if" element={<Reality />} />
+            {/* Redirects for old deep links */}
+            <Route path="/teams" element={<Navigate to="/tournament?tab=teams" replace />} />
+            <Route path="/groups" element={<Navigate to="/tournament?tab=groups" replace />} />
+            <Route path="/fixtures" element={<Navigate to="/tournament?tab=fixtures" replace />} />
+            <Route path="/odds" element={<Navigate to="/predict?tab=odds" replace />} />
+            <Route path="/predict-match" element={<Navigate to="/predict?tab=match" replace />} />
+            <Route path="/what-if" element={<Navigate to="/predict?tab=whatif" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           </Suspense>
         </ErrorBoundary>
