@@ -1,4 +1,5 @@
 import { flag } from "../api/client";
+import { useEsc } from "../hooks/useEsc";
 import type { MatchEvent, MatchLineups, LineupPlayer } from "../types";
 import PlayerPhoto from "./PlayerPhoto";
 
@@ -28,6 +29,7 @@ export default function MatchModal({
   names: Record<string, string>;
   onClose: () => void;
 }) {
+  useEsc(onClose);
   const home = match.home || "";
   const away = match.away || "";
   const ev = match.events || [];

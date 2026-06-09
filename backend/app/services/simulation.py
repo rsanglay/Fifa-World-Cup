@@ -91,6 +91,11 @@ def manage_team_run(
     result["managed_team"] = team
     result["lineup"] = delta_info
     result["journey"] = _team_journey(team, result)
+    # Trim payload (#17): the manage UI shows only the journey + awards, not the
+    # full 104-match tree with every lineup. Drop the heavy arrays (~50-80KB).
+    result.pop("group_matches", None)
+    result.pop("knockout", None)
+    result.pop("groups", None)
     return result
 
 

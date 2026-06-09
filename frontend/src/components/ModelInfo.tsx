@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
+import { useEsc } from "../hooks/useEsc";
 
 const SECTIONS: [string, string][] = [
   ["Team strength = Elo", "Every team has an Elo rating (the same idea chess uses). A bigger gap means a bigger favourite. Hosts get a boost when they play at home."],
@@ -15,6 +16,7 @@ export default function ModelInfo() {
   useEffect(() => {
     if (open && !diag) api.modelDiagnostics().then(setDiag).catch(() => {});
   }, [open, diag]);
+  useEsc(() => setOpen(false));
   return (
     <>
       <button onClick={() => setOpen(true)} className="btn-ghost text-sm">

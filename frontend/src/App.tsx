@@ -1,14 +1,17 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { NavLink, Route, Routes, useLocation } from "react-router-dom";
 import Home from "./features/Home";
-import Teams from "./features/Teams";
-import Groups from "./features/Groups";
-import Fixtures from "./features/Fixtures";
-import Odds from "./features/Odds";
-import MatchPredictor from "./features/MatchPredictor";
-import Simulator from "./features/Simulator";
-import Reality from "./features/Reality";
 import ErrorBoundary from "./components/ErrorBoundary";
+
+// Lazy-load the heavier routes so the initial bundle stays small — the
+// Simulator alone pulls in the cinematic engine, confetti, audio, etc.
+const Teams = lazy(() => import("./features/Teams"));
+const Groups = lazy(() => import("./features/Groups"));
+const Fixtures = lazy(() => import("./features/Fixtures"));
+const Odds = lazy(() => import("./features/Odds"));
+const MatchPredictor = lazy(() => import("./features/MatchPredictor"));
+const Simulator = lazy(() => import("./features/Simulator"));
+const Reality = lazy(() => import("./features/Reality"));
 
 const NAV = [
   { to: "/", label: "Home", end: true },
@@ -71,6 +74,7 @@ export default function App() {
 
       <main key={loc.pathname} className="mx-auto max-w-7xl px-4 py-6">
         <ErrorBoundary>
+          <Suspense fallback={<div className="skel h-64" />}>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/teams" element={<Teams />} />
@@ -81,6 +85,7 @@ export default function App() {
             <Route path="/simulator" element={<Simulator />} />
             <Route path="/what-if" element={<Reality />} />
           </Routes>
+          </Suspense>
         </ErrorBoundary>
       </main>
 
