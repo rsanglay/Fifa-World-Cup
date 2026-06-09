@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { api, flag } from "../api/client";
 import type { GroupRow, KnockoutMatch, MatchEvent, SimResult } from "../types";
 import Bracket from "./Bracket";
+import MiniBracket from "./MiniBracket";
 import Awards from "./Awards";
 import LiveMatch from "./LiveMatch";
 import MatchModal, { MatchData } from "./MatchModal";
@@ -140,6 +141,18 @@ export default function CinematicSim({
     return out;
   }, [step, elos]);
 
+  // Knockout rounds revealed so far -> progressive bracket from R16 on.
+  const revealedKo = useMemo(() => {
+    const s = new Set<string>();
+    for (let i = 0; i <= idx; i++) {
+      const k = steps[i];
+      if (k.kind === "ko" && k.round) s.add(k.round);
+      if (k.kind === "final") s.add("F");
+    }
+    return s;
+  }, [idx, steps]);
+  const showBracket = (step?.kind === "ko" && step.round !== "R32") || step?.kind === "final";
+
   const jumpToFollow = () => {
     if (!follow) return;
     for (let i = idx + 1; i < steps.length; i++) {
@@ -203,6 +216,11 @@ export default function CinematicSim({
 
       <AnimatePresence mode="wait">
         <motion.div key={idx} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.35 }}>
+          {showBracket && (
+            <div className="mb-4">
+              <MiniBracket knockout={result.knockout} revealed={revealedKo} names={names} />
+            </div>
+          )}
           {step.kind === "group" && (
             <GroupStep matches={step.matches as GMatch[]} standings={standingsUpTo(result.group_matches, cumulativeIdx)} names={names} onOpen={setOpenMatch} />
           )}
