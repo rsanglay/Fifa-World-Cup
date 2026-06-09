@@ -122,6 +122,10 @@ export interface MatchPrediction {
   expected_goals_home: number;
   expected_goals_away: number;
   most_likely_score: string;
+  over_2_5?: number;
+  under_2_5?: number;
+  btts?: number;
+  top_scorelines?: { score: string; prob: number }[];
 }
 
 export interface GroupRow {

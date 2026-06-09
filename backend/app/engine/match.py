@@ -101,6 +101,21 @@ def predict(
     home_win, away_win, draw = home_win / total, away_win / total, draw / total
 
     most_likely = np.unravel_index(int(np.argmax(joint)), joint.shape)
+    joint_n = joint / total  # normalised scoreline distribution
+
+    # Goal-market probabilities from the scoreline grid.
+    h_idx, a_idx = np.indices(joint_n.shape)
+    totals = h_idx + a_idx
+    over_25 = float(joint_n[totals >= 3].sum())
+    btts = float(joint_n[(h_idx >= 1) & (a_idx >= 1)].sum())
+
+    # Top scorelines.
+    flat = sorted(
+        ((f"{h}-{a}", float(joint_n[h, a]))
+         for h in range(joint_n.shape[0]) for a in range(joint_n.shape[1])),
+        key=lambda kv: kv[1], reverse=True,
+    )[:6]
+
     return {
         "home_win": round(home_win, 4),
         "draw": round(draw, 4),
@@ -108,6 +123,10 @@ def predict(
         "expected_goals_home": round(lam_home, 2),
         "expected_goals_away": round(lam_away, 2),
         "most_likely_score": f"{most_likely[0]}-{most_likely[1]}",
+        "over_2_5": round(over_25, 4),
+        "under_2_5": round(1.0 - over_25, 4),
+        "btts": round(btts, 4),
+        "top_scorelines": [{"score": s, "prob": round(p, 4)} for s, p in flat],
     }
 
 
@@ -157,19 +176,26 @@ def simulate(
     """Simulate one match. Knockouts always resolve to a winner."""
     lam_home, lam_away = _lambdas(home, away, home_advantage)
 
-    # Red cards: a sending-off late hurts less than an early one. The carded
-    # side loses attacking output; the opponent gains a little.
+    # Red cards: a sending-off late hurts less than an early one, and a defender
+    # going off (≈60% of reds) opens you up more than an attacker — the opponent
+    # gains more, the carded side's own attack dips less.
     red_home = red_away = None
+
+    def _apply_red(lam_carded, lam_opp, minute):
+        share = minute / 90.0
+        defender = rng.random() < 0.6
+        opp_gain = (0.30 if defender else 0.15) * (1.0 - share)
+        own_loss = (0.30 if defender else 0.45)
+        lam_carded *= (1.0 - own_loss) + own_loss * share
+        lam_opp *= 1.0 + opp_gain
+        return lam_carded, lam_opp
+
     if rng.random() < RED_CARD_PROB:
         red_home = int(rng.integers(20, 90))
-        share = red_home / 90.0
-        lam_home *= 0.55 + 0.40 * share
-        lam_away *= 1.0 + 0.22 * (1.0 - share)
+        lam_home, lam_away = _apply_red(lam_home, lam_away, red_home)
     if rng.random() < RED_CARD_PROB:
         red_away = int(rng.integers(20, 90))
-        share = red_away / 90.0
-        lam_away *= 0.55 + 0.40 * share
-        lam_home *= 1.0 + 0.22 * (1.0 - share)
+        lam_away, lam_home = _apply_red(lam_away, lam_home, red_away)
 
     hg = int(rng.poisson(lam_home))
     ag = int(rng.poisson(lam_away))

@@ -2300,28 +2300,28 @@
   "age": null
  },
  "Victor Lindelof": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Sweden-Slovenia_Nations_League_2022-09-27_6_%28Victor_Lindelof%2C_cropped%29.jpg/500px-Sweden-Slovenia_Nations_League_2022-09-27_6_%28Victor_Lindelof%2C_cropped%29.jpg",
+  "age": 32
  },
  "Isak Hien": {
   "photo": "",
   "age": null
  },
  "Gabriel Gudmundsson": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Gabriel_Gudmundsson_%28Sweden_vs_Moldova%2C_12_October_2023%29_%28cropped%29.jpg/500px-Gabriel_Gudmundsson_%28Sweden_vs_Moldova%2C_12_October_2023%29_%28cropped%29.jpg",
+  "age": 27
  },
  "Emil Krafth": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/c/cc/Emil_Krafth_%28cropped%29.jpg",
+  "age": 32
  },
  "Daniel Svensson": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/37/The_Halo_Effect_Rockharz_2024_23_%28cropped%29.jpg/500px-The_Halo_Effect_Rockharz_2024_23_%28cropped%29.jpg",
+  "age": 49
  },
  "Hjalmar Ekdal": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Hjalmar_Ekdal_%28Sirius%2C_2020%2C_cropped%29.jpg/500px-Hjalmar_Ekdal_%28Sirius%2C_2020%2C_cropped%29.jpg",
+  "age": 28
  },
  "Samuel Dahl": {
   "photo": "",
@@ -2360,12 +2360,12 @@
   "age": 27
  },
  "Viktor Gyokeres": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/1_Viktor_Gy%C3%B6keres_2026.jpg/500px-1_Viktor_Gy%C3%B6keres_2026.jpg",
+  "age": 28
  },
  "Dejan Kulusevski": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Sweden-Slovenia_Nations_League_2022-09-27_17_Kulusevski_%28cropped%29.jpg/500px-Sweden-Slovenia_Nations_League_2022-09-27_17_Kulusevski_%28cropped%29.jpg",
+  "age": 26
  },
  "Anthony Elanga": {
   "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8f/Anthony_Elanga_%28Sweden_vs_Moldova%2C_12_October_2023%29.jpg/500px-Anthony_Elanga_%28Sweden_vs_Moldova%2C_12_October_2023%29.jpg",
@@ -2468,23 +2468,23 @@
   "age": 36
  },
  "Naim Sliti": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/7/7b/Bel-Tun_%2823%29_%28cropped%29_%28cropped%29.jpg",
+  "age": 34
  },
  "Seifeddine Jaziri": {
   "photo": "",
-  "age": null
+  "age": 33
  },
  "Elias Achouri": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Elias_Achouri%2C_Vejle_Boldklub_-_FC_K%C3%B8benhavn%2C_29._July_2023_-_opvarmning_FCK%27s_1._hold_%28cropped%29.jpg/500px-Elias_Achouri%2C_Vejle_Boldklub_-_FC_K%C3%B8benhavn%2C_29._July_2023_-_opvarmning_FCK%27s_1._hold_%28cropped%29.jpg",
+  "age": 27
  },
  "Firas Ben Larbi": {
   "photo": "",
-  "age": null
+  "age": 30
  },
  "Mohamed Amine Ben Hmida": {
-  "photo": "",
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/7/7c/Mohamed_Amine_Ben_Hmida_%28cropped%29.jpg",
   "age": null
  },
  "Haitham Jouini": {
@@ -2508,8 +2508,8 @@
   "age": null
  },
  "Timothy Castagne": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d9/Timothy_Castagne_USMNT_v_Belgium_Mar_28_2026-17_%28cropped%29.jpg/500px-Timothy_Castagne_USMNT_v_Belgium_Mar_28_2026-17_%28cropped%29.jpg",
+  "age": 31
  },
  "Zeno Debast": {
   "photo": "",
@@ -2572,12 +2572,12 @@
   "age": 24
  },
  "Leandro Trossard": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/RC_Lens_-_Arsenal_FC_%2803-10-2023%29_26_%28cropped%29.jpg/500px-RC_Lens_-_Arsenal_FC_%2803-10-2023%29_26_%28cropped%29.jpg",
+  "age": 32
  },
  "Dodi Lukebakio": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Dodi_Luk%C3%A9bakio_USMNT_v_Belgium_Mar_28_2026-212_%28cropped%29.jpg/500px-Dodi_Luk%C3%A9bakio_USMNT_v_Belgium_Mar_28_2026-212_%28cropped%29.jpg",
+  "age": 29
  },
  "Romelu Lukaku": {
   "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dc/Romelu_Lukaku_2021.jpg/500px-Romelu_Lukaku_2021.jpg",
@@ -2600,20 +2600,20 @@
   "age": null
  },
  "Mohamed El Shenawy": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Mohamed_El_Shenawy.jpg/500px-Mohamed_El_Shenawy.jpg",
+  "age": 38
  },
  "Mostafa Shobeir": {
   "photo": "",
-  "age": null
+  "age": 26
  },
  "Mohamed Sobhi": {
   "photo": "",
   "age": null
  },
  "Ahmed Hegazi": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Ahmed_Hegazi_2018.jpg/500px-Ahmed_Hegazi_2018.jpg",
+  "age": 35
  },
  "Mohamed Abdelmonem": {
   "photo": "",
@@ -2625,19 +2625,19 @@
  },
  "Ahmed Fattouh": {
   "photo": "",
-  "age": null
+  "age": 28
  },
  "Mohamed Hany": {
   "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Mohamed_Hany_in_2021_FIFA_Club_World_Cup.jpg/500px-Mohamed_Hany_in_2021_FIFA_Club_World_Cup.jpg",
   "age": 30
  },
  "Rami Rabia": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b7/Ramy_Rabia_in_2021_FIFA_Club_World_Cup.jpg/500px-Ramy_Rabia_in_2021_FIFA_Club_World_Cup.jpg",
+  "age": 33
  },
  "Osama Galal": {
   "photo": "",
-  "age": null
+  "age": 29
  },
  "Mohamed Hamdy": {
   "photo": "",
@@ -2652,28 +2652,28 @@
   "age": 32
  },
  "Marwan Attia": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/Marwan_Attia.jpg/500px-Marwan_Attia.jpg",
+  "age": 28
  },
  "Mahmoud Saber": {
   "photo": "",
-  "age": null
+  "age": 25
  },
  "Nabil Emad Donga": {
   "photo": "",
   "age": null
  },
  "Emam Ashour": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/Emam22.jpg/500px-Emam22.jpg",
+  "age": 28
  },
  "Mohamed Salah": {
   "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Mohamed_Salah_2018.jpg/500px-Mohamed_Salah_2018.jpg",
   "age": 34
  },
  "Omar Marmoush": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/OmarMarmoush.png/500px-OmarMarmoush.png",
+  "age": 27
  },
  "Trezeguet": {
   "photo": "",
@@ -2788,15 +2788,15 @@
   "age": null
  },
  "Allahyar Sayyadmanesh": {
-  "photo": "",
-  "age": null
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Allahyar_Sayyadmanesh_2018_2.jpg/500px-Allahyar_Sayyadmanesh_2018_2.jpg",
+  "age": 25
  },
  "Shahriyar Moghanlou": {
   "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/Shahriyar_Moghanlou_14000129000016637543017694769152.jpg/500px-Shahriyar_Moghanlou_14000129000016637543017694769152.jpg",
   "age": null
  },
  "Mehdi Hosseini": {
-  "photo": "",
+  "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f7/Mehdi_Hosseini%2C_composer_%28cropped%29.JPG/500px-Mehdi_Hosseini%2C_composer_%28cropped%29.JPG",
   "age": null
  },
  "Amirhossein Hosseinzadeh": {

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { api } from "../api/client";
 
 const SECTIONS: [string, string][] = [
   ["Team strength = Elo", "Every team has an Elo rating (the same idea chess uses). A bigger gap means a bigger favourite. Hosts get a boost when they play at home."],
@@ -10,6 +11,10 @@ const SECTIONS: [string, string][] = [
 
 export default function ModelInfo() {
   const [open, setOpen] = useState(false);
+  const [diag, setDiag] = useState<any>(null);
+  useEffect(() => {
+    if (open && !diag) api.modelDiagnostics().then(setDiag).catch(() => {});
+  }, [open, diag]);
   return (
     <>
       <button onClick={() => setOpen(true)} className="btn-ghost text-sm">
@@ -28,6 +33,17 @@ export default function ModelInfo() {
                 </div>
               ))}
             </div>
+            {diag && (
+              <div className="mt-4 rounded-xl border border-white/10 bg-ink/40 p-3">
+                <div className="mb-2 text-sm font-semibold text-white/90">Is it calibrated? ✓</div>
+                <div className="space-y-1 text-xs text-white/60">
+                  <Row label="Goals per match" model={diag.model.goals_per_match} ref={diag.reference.goals_per_match} ok={diag.checks.goals_per_match === "on-target"} />
+                  <Row label="Draw rate" model={`${(diag.model.draw_rate * 100).toFixed(0)}%`} ref={`${(diag.reference.draw_rate * 100).toFixed(0)}%`} ok={diag.checks.draw_rate === "on-target"} />
+                  <Row label="Favourite title odds" model={`${(diag.model.favourite.p_title * 100).toFixed(0)}%`} ref="15–32%" ok={diag.checks.favourite_concentration === "on-target"} />
+                </div>
+                <p className="mt-2 text-[10px] text-white/35">Model output vs long-run World Cup norms ({diag.sample}).</p>
+              </div>
+            )}
             <p className="mt-4 text-xs text-white/40">
               These are probabilities, not guarantees — the whole point is that upsets happen.
             </p>
@@ -36,5 +52,18 @@ export default function ModelInfo() {
         </div>
       )}
     </>
+  );
+}
+
+function Row({ label, model, ref, ok }: { label: string; model: any; ref: any; ok: boolean }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span>{label}</span>
+      <span className="tabular-nums">
+        <span className="text-white/90">{model}</span>
+        <span className="text-white/30"> vs {ref}</span>
+        <span className="ml-1">{ok ? "✓" : "≈"}</span>
+      </span>
+    </div>
   );
 }

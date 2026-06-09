@@ -104,6 +104,36 @@ export default function MatchPredictor() {
               </div>
             ))}
           </div>
+
+          {pred.over_2_5 != null && (
+            <div className="mt-5 border-t border-white/5 pt-4">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-gold">Goal markets</div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                {[
+                  ["Over 2.5", pred.over_2_5],
+                  ["Under 2.5", pred.under_2_5 ?? 0],
+                  ["Both score", pred.btts ?? 0],
+                ].map(([l, v]) => (
+                  <div key={l as string} className="rounded-xl bg-ink/60 p-2">
+                    <div className="font-display text-xl text-gold">{((v as number) * 100).toFixed(0)}%</div>
+                    <div className="text-[10px] text-white/40">{l}</div>
+                  </div>
+                ))}
+              </div>
+              {pred.top_scorelines && (
+                <div className="mt-3">
+                  <div className="mb-1 text-[10px] uppercase tracking-wide text-white/40">Most likely scorelines</div>
+                  <div className="flex flex-wrap gap-2">
+                    {pred.top_scorelines.slice(0, 6).map((s) => (
+                      <span key={s.score} className="rounded-lg bg-ink/60 px-2 py-1 text-xs">
+                        {s.score} <span className="text-white/40">{(s.prob * 100).toFixed(0)}%</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

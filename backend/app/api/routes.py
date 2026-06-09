@@ -96,6 +96,11 @@ def tournament_odds(simulations: int = Query(5000, ge=500, le=20000)):
     return sim.cached_odds(simulations)
 
 
+@router.get("/model/diagnostics")
+def model_diagnostics():
+    return sim.model_diagnostics()
+
+
 # ------------------------------- simulation ------------------------------- #
 @router.post("/simulate/tournament")
 def simulate_tournament(req: TournamentSimRequest):

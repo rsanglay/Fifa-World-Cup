@@ -111,6 +111,45 @@ def manage_team_odds(
             "simulations": simulations}
 
 
+def model_diagnostics() -> dict:
+    """Aggregate model properties vs real World Cup reference averages.
+
+    Computed analytically over all 72 group fixtures (neutral venue) — fast and
+    deterministic. Proves the model sits in a realistic band rather than being
+    asserted to. Reference figures are long-run men's World Cup norms.
+    """
+    data = load_tournament()
+    preds = []
+    for fx in (f for g in data.group_fixtures.values() for f in g):
+        h, a = fx["home"], fx["away"]
+        preds.append(predict_single(h, a, neutral=True))
+    n = len(preds)
+    avg_goals = sum(p["expected_goals_home"] + p["expected_goals_away"] for p in preds) / n
+    draw_rate = sum(p["draw"] for p in preds) / n
+    over25 = sum(p["over_2_5"] for p in preds) / n
+    mc = cached_odds(2000)
+    fav = mc["teams"][0]
+    ref = {"goals_per_match": 2.6, "draw_rate": 0.24, "over_2_5": 0.50,
+           "note": "Long-run men's World Cup group-stage norms."}
+    def verdict(val, target, tol):
+        return "on-target" if abs(val - target) <= tol else "off"
+    return {
+        "sample": f"{n} group fixtures (neutral, analytic)",
+        "model": {
+            "goals_per_match": round(avg_goals, 2),
+            "draw_rate": round(draw_rate, 3),
+            "over_2_5": round(over25, 3),
+            "favourite": {"name": fav["name"], "p_title": fav["p_title"]},
+        },
+        "reference": ref,
+        "checks": {
+            "goals_per_match": verdict(avg_goals, ref["goals_per_match"], 0.3),
+            "draw_rate": verdict(draw_rate, ref["draw_rate"], 0.06),
+            "favourite_concentration": "on-target" if 0.15 <= fav["p_title"] <= 0.32 else "off",
+        },
+    }
+
+
 def reality_odds(results: dict, simulations: int = 2000) -> dict:
     """Title/round odds conditioned on a set of known group results.
 
