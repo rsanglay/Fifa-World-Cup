@@ -18,6 +18,7 @@ from app.schemas import (
     ManageSimRequest,
     ManageStartRequest,
     MatchPredictRequest,
+    RealityRequest,
     TournamentSimRequest,
 )
 from app.services import manage_session
@@ -150,3 +151,10 @@ def manage_get(session_id: str):
         return manage_session.get(session_id)
     except KeyError as e:
         raise HTTPException(404, str(e))
+
+
+# --------------------------- continue-from-reality ------------------------ #
+@router.post("/reality/odds")
+def reality_odds(req: RealityRequest):
+    sims = max(500, min(8000, req.simulations))
+    return sim.reality_odds(req.results, sims)

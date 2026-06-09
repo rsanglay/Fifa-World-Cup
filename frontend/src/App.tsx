@@ -7,6 +7,7 @@ import Fixtures from "./features/Fixtures";
 import Odds from "./features/Odds";
 import MatchPredictor from "./features/MatchPredictor";
 import Simulator from "./features/Simulator";
+import Reality from "./features/Reality";
 import ErrorBoundary from "./components/ErrorBoundary";
 
 const NAV = [
@@ -17,6 +18,7 @@ const NAV = [
   { to: "/odds", label: "Title Odds" },
   { to: "/predict", label: "Match Predictor" },
   { to: "/simulator", label: "Simulator" },
+  { to: "/what-if", label: "What-If Lab" },
 ];
 
 export default function App() {
@@ -77,6 +79,7 @@ export default function App() {
             <Route path="/odds" element={<Odds />} />
             <Route path="/predict" element={<MatchPredictor />} />
             <Route path="/simulator" element={<Simulator />} />
+            <Route path="/what-if" element={<Reality />} />
           </Routes>
         </ErrorBoundary>
       </main>

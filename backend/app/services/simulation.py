@@ -111,6 +111,49 @@ def manage_team_odds(
             "simulations": simulations}
 
 
+def reality_odds(results: dict, simulations: int = 2000) -> dict:
+    """Title/round odds conditioned on a set of known group results.
+
+    `results`: {match_no(str|int): [home_goals, away_goals]}. Also returns the
+    deterministic group standings implied by the pinned results so far.
+    """
+    data = load_tournament()
+    fixed: Dict[int, tuple] = {}
+    for k, v in (results or {}).items():
+        try:
+            fixed[int(k)] = (int(v[0]), int(v[1]))
+        except (ValueError, TypeError, IndexError):
+            continue
+    mc = monte_carlo(data, n=simulations, seed=2026, fixed_results=fixed)
+    return {
+        "simulations": simulations,
+        "fixed_count": len(fixed),
+        "teams": mc["teams"],
+        "standings": _standings_from_results(data, fixed),
+    }
+
+
+def _standings_from_results(data, fixed: Dict[int, tuple]) -> dict:
+    """Deterministic group tables from only the pinned results (played so far)."""
+    from app.engine.tournament import TeamRecord, _sort_group
+
+    by_group: Dict[str, Dict[str, TeamRecord]] = {}
+    for g, fixtures in data.group_fixtures.items():
+        recs = {}
+        for fx in fixtures:
+            for c in (fx["home"], fx["away"]):
+                recs.setdefault(c, TeamRecord(c, g))
+        for fx in fixtures:
+            pin = fixed.get(fx.get("match_no"))
+            if pin is None:
+                continue
+            h, a = fx["home"], fx["away"]
+            recs[h].apply(a, int(pin[0]), int(pin[1]))
+            recs[a].apply(h, int(pin[1]), int(pin[0]))
+        by_group[g] = [r.as_dict() for r in _sort_group(list(recs.values()))]
+    return by_group
+
+
 def _merge_events(result: dict, awards: dict) -> None:
     """Attach per-match scorers + fielded XIs onto each match in the result."""
     events = awards.pop("match_events", {})

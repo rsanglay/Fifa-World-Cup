@@ -53,6 +53,11 @@ export const api = {
     post<{ session_id: string; state: ManagedState }>("/manage/start", { team, seed }),
   managePlay: (session_id: string, starting_xi: string[]) =>
     post<{ session_id: string; state: ManagedState }>("/manage/play", { session_id, starting_xi }),
+  realityOdds: (results: Record<string, [number, number]>, simulations = 2500) =>
+    post<{ simulations: number; fixed_count: number; teams: OddsRow[]; standings: Record<string, any[]> }>(
+      "/reality/odds",
+      { results, simulations }
+    ),
 };
 
 // FIFA 3-letter code -> ISO-3166 alpha-2 (for flag emoji).

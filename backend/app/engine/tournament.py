@@ -179,17 +179,20 @@ def play_group(
     venue_country: Dict[int, str],
     last_played: Optional[Dict[str, str]] = None,
     momentum: Optional[Dict[str, float]] = None,
+    fixed_results: Optional[Dict[int, tuple]] = None,
 ) -> tuple[List[TeamRecord], List[dict]]:
     """Simulate one group's 6 matches; return sorted table + match log.
 
     Matches are played in date order so each team's rest (days since its
     previous fixture) is tracked correctly via `last_played`; `momentum`
-    carries recent-form nudges.
+    carries recent-form nudges. `fixed_results` (match_no -> (hg, ag)) pins
+    known/real results instead of simulating them — the rest plays around them.
     """
     if last_played is None:
         last_played = {}
     if momentum is None:
         momentum = {}
+    fixed_results = fixed_results or {}
     records = {c: TeamRecord(c, group) for c in team_codes}
     log: List[dict] = []
     ordered = sorted(fixtures, key=lambda f: (f.get("date", ""), f.get("match_no", 0)))
@@ -197,10 +200,14 @@ def play_group(
         home, away = fx["home"], fx["away"]
         country = fx.get("country", "")
         date = fx.get("date")
-        h_adv = _home_adv(home, away, country)
-        h_adv += _net_fatigue_adv(home, away, date, last_played)
-        h_adv += _momentum_adv(home, away, momentum)
-        res = simulate(strengths[home], strengths[away], rng, home_advantage=h_adv)
+        pinned = fixed_results.get(fx.get("match_no"))
+        if pinned is not None:
+            res = MatchResult(int(pinned[0]), int(pinned[1]))
+        else:
+            h_adv = _home_adv(home, away, country)
+            h_adv += _net_fatigue_adv(home, away, date, last_played)
+            h_adv += _momentum_adv(home, away, momentum)
+            res = simulate(strengths[home], strengths[away], rng, home_advantage=h_adv)
         records[home].apply(away, res.home_goals, res.away_goals)
         records[away].apply(home, res.away_goals, res.home_goals)
         _apply_result_momentum(momentum, home, away, res.home_goals, res.away_goals)

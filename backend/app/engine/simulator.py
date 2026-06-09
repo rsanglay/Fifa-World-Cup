@@ -53,8 +53,13 @@ def simulate_once(
     data: TournamentData,
     rng: np.random.Generator,
     lineup_deltas: Optional[Dict[str, float]] = None,
+    fixed_results: Optional[Dict[int, tuple]] = None,
 ) -> dict:
-    """One full tournament. Returns a JSON-friendly result tree."""
+    """One full tournament. Returns a JSON-friendly result tree.
+
+    `fixed_results` (group match_no -> (hg, ag)) pins known/real results; the
+    rest of the tournament simulates around them.
+    """
     strengths = _strengths(data, lineup_deltas)
     members = data.group_members()
 
@@ -70,7 +75,7 @@ def simulate_once(
             continue
         table, log = play_group(
             g, members[g], strengths, data.group_fixtures.get(g, []),
-            rng, data.venue_country, last_played, momentum,
+            rng, data.venue_country, last_played, momentum, fixed_results,
         )
         group_tables[g] = table
         group_logs.extend(log)
@@ -149,8 +154,12 @@ def monte_carlo(
     n: int = 5000,
     lineup_deltas: Optional[Dict[str, float]] = None,
     seed: Optional[int] = None,
+    fixed_results: Optional[Dict[int, tuple]] = None,
 ) -> dict:
-    """Run N tournaments; aggregate per-team round-reach + title probabilities."""
+    """Run N tournaments; aggregate per-team round-reach + title probabilities.
+
+    With `fixed_results`, odds are conditioned on those known results.
+    """
     rng = np.random.default_rng(seed)
     counts: Dict[str, Dict[str, int]] = {
         code: defaultdict(int) for code in data.teams
@@ -160,7 +169,7 @@ def monte_carlo(
     champ_scores = []
 
     for _ in range(n):
-        result = simulate_once(data, rng, lineup_deltas)
+        result = simulate_once(data, rng, lineup_deltas, fixed_results)
         for code, rnd in _reached_rounds(result).items():
             # Credit a team with every round up to and including its best.
             counts[code][rnd] += 1

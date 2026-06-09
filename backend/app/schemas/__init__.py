@@ -41,3 +41,9 @@ class ManageStartRequest(BaseModel):
 class ManagePlayRequest(BaseModel):
     session_id: str
     starting_xi: List[str] = Field(default_factory=list)
+
+
+class RealityRequest(BaseModel):
+    # match_no (as string key) -> [home_goals, away_goals]
+    results: dict = Field(default_factory=dict)
+    simulations: int = 2000
