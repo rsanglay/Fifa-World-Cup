@@ -11,6 +11,7 @@ import Confetti from "../components/Confetti";
 import ShareButton from "../components/ShareButton";
 import { sound, isMuted, setMuted } from "../lib/sound";
 import CareerMode from "./CareerMode";
+import TournamentSpread from "../components/TournamentSpread";
 import type { GroupRow, LineupResult, OddsRow, SimResult, Team, TeamDetail } from "../types";
 
 type Mode = "menu" | "full" | "manage";
@@ -571,6 +572,8 @@ function ManageResult({
           })}
         </div>
       </div>
+
+      {odds && <TournamentSpread odds={odds} />}
 
       {result.awards && (
         <div>
