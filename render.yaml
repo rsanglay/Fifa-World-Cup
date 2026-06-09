@@ -1,0 +1,17 @@
+# Render blueprint for the FastAPI backend (free, always-on web service).
+# Render auto-detects this file when you create a "Blueprint" from the repo.
+services:
+  - type: web
+    name: wc2026-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      # Set these in the Render dashboard (Environment tab). Leave blank to use
+      # in-memory career sessions; set them to enable Supabase persistence.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false

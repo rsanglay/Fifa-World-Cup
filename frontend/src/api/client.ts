@@ -10,7 +10,9 @@ import type {
   TeamDetail,
 } from "../types";
 
-const BASE = "/api";
+// Same-origin "/api" by default (dev proxy / single-host). For a separate
+// backend host (e.g. Render), set VITE_API_URL to its base URL in Vercel.
+const BASE = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "") + "/api";
 
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`);
