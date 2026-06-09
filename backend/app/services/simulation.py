@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
-from app.core.data import load_squads, load_tournament
+from app.core.data import load_baseline_odds, load_squads, load_tournament
 from app.engine.match import TeamStrength, predict as predict_match
 from app.engine.playerstats import attribute
 from app.engine.simulator import monte_carlo, simulate_once
@@ -15,7 +15,14 @@ from app.engine.squad import lineup_delta
 
 @lru_cache(maxsize=8)
 def cached_odds(simulations: int = 5000) -> dict:
-    """Baseline tournament odds (full-strength teams). Cached by N."""
+    """Baseline tournament odds (full-strength teams).
+
+    Serves the precomputed 10k-sim file instantly when present (keeps page loads
+    fast on small/free hosts); falls back to a live Monte-Carlo run otherwise.
+    """
+    baseline = load_baseline_odds()
+    if baseline and baseline.get("teams"):
+        return baseline
     data = load_tournament()
     return monte_carlo(data, n=simulations, seed=2026)
 
