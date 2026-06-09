@@ -292,8 +292,9 @@ function ManageSim({ onBack }: { onBack: () => void }) {
   const [career, setCareer] = useState(false);
   const [lineupView, setLineupView] = useState<"pitch" | "list">("pitch");
   const [resumeSid, setResumeSid] = useState<string | undefined>(undefined);
-  const active = careerStore.getActive();
-  const history = careerStore.getHistory();
+  const [active, setActive] = useState(() => careerStore.getActive());
+  const [history, setHistory] = useState(() => careerStore.getHistory());
+  const refreshCareer = () => { setActive(careerStore.getActive()); setHistory(careerStore.getHistory()); };
 
   useEffect(() => {
     api.teams().then(setTeams);
@@ -339,7 +340,7 @@ function ManageSim({ onBack }: { onBack: () => void }) {
 
   if (career && code) {
     return <CareerMode team={code} resumeSession={resumeSid}
-      onExit={() => { setCareer(false); setResumeSid(undefined); pickTeam(""); }} />;
+      onExit={() => { setCareer(false); setResumeSid(undefined); pickTeam(""); refreshCareer(); }} />;
   }
 
   return (
@@ -371,7 +372,7 @@ function ManageSim({ onBack }: { onBack: () => void }) {
             <div className="text-xs text-white/40">Pick up where you left off (while the session is live).</div>
           </div>
           <button onClick={() => { setResumeSid(active.sessionId); setCode(active.team); setCareer(true); }} className="btn-primary text-sm">▶ Resume</button>
-          <button onClick={() => { careerStore.clearActive(); pickTeam(""); }} className="btn-ghost text-sm">Discard</button>
+          <button onClick={() => { careerStore.clearActive(); setActive(null); }} className="btn-ghost text-sm">Discard</button>
         </div>
       )}
 
