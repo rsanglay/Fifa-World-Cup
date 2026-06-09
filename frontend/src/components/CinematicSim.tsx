@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { flag } from "../api/client";
+import { api, flag } from "../api/client";
 import type { GroupRow, KnockoutMatch, MatchEvent, SimResult } from "../types";
 import Bracket from "./Bracket";
 import Awards from "./Awards";
@@ -49,6 +49,16 @@ export default function CinematicSim({
 }) {
   const names = result.team_names;
   const [openMatch, setOpenMatch] = useState<MatchData | null>(null);
+  const [follow, setFollow] = useState<string>("");
+  const [speed, setSpeed] = useState(1);
+  const [elos, setElos] = useState<Record<string, number>>({});
+  useEffect(() => {
+    api.teams().then((ts) => {
+      const m: Record<string, number> = {};
+      ts.forEach((t) => (m[t.code] = t.elo));
+      setElos(m);
+    }).catch(() => {});
+  }, []);
 
   const steps = useMemo<Step[]>(() => {
     const s: Step[] = [];
@@ -89,13 +99,54 @@ export default function CinematicSim({
   useEffect(() => {
     if (timer.current) window.clearTimeout(timer.current);
     if (playing && idx < steps.length - 1 && !openMatch) {
-      const dwell =
+      const featuredKo = step.kind === "ko" && follow &&
+        ((step.matches as any[]) || []).some((m) => m.home === follow || m.away === follow);
+      const base =
         step.kind === "final" ? 9000 :
+        featuredKo ? 6000 :
         step.kind === "awards" || step.kind === "ko" ? 4200 : 3200;
-      timer.current = window.setTimeout(() => setIdx((i) => i + 1), dwell);
+      timer.current = window.setTimeout(() => setIdx((i) => i + 1), base / speed);
     }
     return () => { if (timer.current) window.clearTimeout(timer.current); };
-  }, [idx, playing, steps.length, step, openMatch]);
+  }, [idx, playing, steps.length, step, openMatch, speed, follow]);
+
+  // Cumulative events up to the current step — powers the live Golden Boot race.
+  const goldenBoot = useMemo(() => {
+    const tally: Record<string, { name: string; team: string; goals: number }> = {};
+    for (let i = 0; i <= idx; i++) {
+      for (const m of (steps[i].matches as any[]) || []) {
+        for (const e of (m.events || []) as MatchEvent[]) {
+          if (e.type === "red") continue;
+          const k = e.scorer_id || e.scorer;
+          (tally[k] ||= { name: e.scorer, team: e.team, goals: 0 }).goals++;
+        }
+      }
+    }
+    return Object.values(tally).sort((a, b) => b.goals - a.goals).slice(0, 3);
+  }, [idx, steps]);
+
+  // Upsets in the current step's matches (loser meaningfully stronger by Elo).
+  const upsets = useMemo(() => {
+    const ms = (step?.matches as any[]) || [];
+    const out: { winner: string; loser: string; score: string }[] = [];
+    for (const m of ms) {
+      const w = m.winner || (m.home_goals > m.away_goals ? m.home : m.away_goals > m.home_goals ? m.away : null);
+      if (!w) continue;
+      const l = w === m.home ? m.away : m.home;
+      if ((elos[l] || 0) - (elos[w] || 0) >= 90) {
+        out.push({ winner: w, loser: l, score: `${m.home_goals}-${m.away_goals}` });
+      }
+    }
+    return out;
+  }, [step, elos]);
+
+  const jumpToFollow = () => {
+    if (!follow) return;
+    for (let i = idx + 1; i < steps.length; i++) {
+      const ms = (steps[i].matches as any[]) || [];
+      if (ms.some((m) => m.home === follow || m.away === follow)) { setIdx(i); return; }
+    }
+  };
 
   const progress = ((idx + 1) / steps.length) * 100;
 
@@ -108,9 +159,47 @@ export default function CinematicSim({
         <button onClick={onFinish} className="btn-ghost text-sm">⏭ Skip to results</button>
         <div className="ml-auto text-sm text-white/50">{step?.label}</div>
       </div>
-      <div className="mb-5 h-1.5 w-full overflow-hidden rounded-full bg-ink">
+      <div className="mb-3 h-1.5 w-full overflow-hidden rounded-full bg-ink">
         <div className="h-full bg-gradient-to-r from-pitch to-gold transition-all" style={{ width: `${progress}%` }} />
       </div>
+
+      {/* Follow + speed controls */}
+      <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
+        <span className="text-white/40">Follow:</span>
+        <select value={follow} onChange={(e) => setFollow(e.target.value)}
+          className="rounded-lg bg-ink-card px-2 py-1 text-sm outline-none ring-1 ring-white/10 focus:ring-gold">
+          <option value="">No-one</option>
+          {Object.entries(names).sort((a, b) => a[1].localeCompare(b[1])).map(([c, n]) => (
+            <option key={c} value={c}>{n}</option>
+          ))}
+        </select>
+        {follow && <button onClick={jumpToFollow} className="btn-ghost text-xs">⏭ Their next match</button>}
+        <span className="ml-2 text-white/40">Speed:</span>
+        {[1, 2, 4].map((s) => (
+          <button key={s} onClick={() => setSpeed(s)}
+            className={`rounded px-2 py-1 text-xs ${speed === s ? "bg-gold text-ink" : "bg-white/5 text-white/70"}`}>{s}×</button>
+        ))}
+      </div>
+
+      {/* Live stats ticker */}
+      {(goldenBoot.length > 0 || upsets.length > 0) && (
+        <div className="mb-4 space-y-2">
+          {upsets.map((u, i) => (
+            <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+              className="rounded-lg bg-red-500/15 px-3 py-1.5 text-sm text-red-200">
+              🚨 UPSET — {flag(u.winner)} {names[u.winner]} beat {flag(u.loser)} {names[u.loser]} {u.score}
+            </motion.div>
+          ))}
+          {goldenBoot.length > 0 && (
+            <div className="flex items-center gap-2 rounded-lg bg-ink/50 px-3 py-1.5 text-xs">
+              <span className="font-semibold text-gold">👟 Golden Boot</span>
+              {goldenBoot.map((g) => (
+                <span key={g.name} className="text-white/70">{flag(g.team)} {g.name} <b className="text-white">{g.goals}</b></span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <AnimatePresence mode="wait">
         <motion.div key={idx} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.35 }}>
@@ -118,7 +207,7 @@ export default function CinematicSim({
             <GroupStep matches={step.matches as GMatch[]} standings={standingsUpTo(result.group_matches, cumulativeIdx)} names={names} onOpen={setOpenMatch} />
           )}
           {step.kind === "ko" && (
-            <KnockoutStep matches={step.matches as KnockoutMatch[]} label={step.label} names={names} onOpen={setOpenMatch} />
+            <KnockoutStep matches={step.matches as KnockoutMatch[]} label={step.label} names={names} onOpen={setOpenMatch} follow={follow} />
           )}
           {step.kind === "final" && (
             <div>
@@ -241,19 +330,28 @@ function GroupStep({
 }
 
 function KnockoutStep({
-  matches, label, names, onOpen,
+  matches, label, names, onOpen, follow,
 }: {
   matches: KnockoutMatch[];
   label: string;
   names: Record<string, string>;
   onOpen: (m: MatchData) => void;
+  follow: string;
 }) {
+  const featured = follow ? matches.find((m) => m.home === follow || m.away === follow) : undefined;
+  const rest = featured ? matches.filter((m) => m !== featured) : matches;
   return (
     <div>
       <h3 className="mb-3 text-center font-display text-3xl tracking-wide text-gold">{label}</h3>
+      {featured && (
+        <div className="mx-auto mb-3 max-w-2xl">
+          <div className="mb-1 text-center text-xs uppercase tracking-widest text-gold">★ Following {names[follow]}</div>
+          <LiveMatch match={featured} names={names} durationMs={5000} />
+        </div>
+      )}
       <div className="mx-auto grid max-w-3xl gap-2">
-        {matches.map((m, i) => (
-          <LiveScore key={m.match_no} match={m} names={names} onOpen={onOpen} delay={i * 0.2} />
+        {rest.map((m, i) => (
+          <LiveScore key={m.match_no} match={m} names={names} onOpen={onOpen} delay={i * 0.15} />
         ))}
       </div>
     </div>
