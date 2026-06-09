@@ -54,10 +54,20 @@ def load_player_meta() -> Dict[str, dict]:
 
 
 @lru_cache(maxsize=1)
+def load_career_stats() -> Dict[str, dict]:
+    """Player name -> {caps, goals} real international stats (687 top players)."""
+    try:
+        return _load("career_stats.json")
+    except FileNotFoundError:
+        return {}
+
+
+@lru_cache(maxsize=1)
 def load_squads() -> Dict[str, List[Player]]:
     """Real squads from squads.json if present, else procedural fallback."""
     teams = load_teams()
     meta = load_player_meta()
+    career = load_career_stats()
     squads: Dict[str, List[Player]] = {}
     raw: dict = {}
     try:
@@ -75,6 +85,14 @@ def load_squads() -> Dict[str, List[Player]]:
                 stats = model_player_stats(
                     e["name"], e["position"], rating, tier, pm.get("age")
                 )
+                # Override modelled caps/goals with real career stats where we
+                # have them (687 top players); keep modelled assists.
+                real = career.get(e["name"])
+                if real:
+                    if real.get("caps") is not None:
+                        stats["caps"] = int(real["caps"])
+                    if real.get("goals") is not None:
+                        stats["goals"] = int(real["goals"])
                 players.append(Player(
                     id=e.get("id", f"{code}-{i}"),
                     name=e["name"],
@@ -180,7 +198,8 @@ def load_tournament() -> TournamentData:
 
 def reset_caches() -> None:
     for fn in (load_teams, load_venues, load_historical, load_fixtures,
-               load_squads, load_tournament, group_stage_with_rest, load_player_meta):
+               load_squads, load_tournament, group_stage_with_rest,
+               load_player_meta, load_career_stats):
         fn.cache_clear()
 
 
