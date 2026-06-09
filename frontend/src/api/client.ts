@@ -51,8 +51,13 @@ export const api = {
     ),
   manageStart: (team: string, seed?: number) =>
     post<{ session_id: string; state: ManagedState }>("/manage/start", { team, seed }),
-  managePlay: (session_id: string, starting_xi: string[]) =>
-    post<{ session_id: string; state: ManagedState }>("/manage/play", { session_id, starting_xi }),
+  managePreview: (session_id: string, starting_xi: string[], mentality: string) =>
+    post<{ preview: { win: number; draw: number; lose: number; your_key: string; opp_key: string } }>(
+      "/manage/preview", { session_id, starting_xi, mentality }),
+  managePlay: (session_id: string, starting_xi: string[], mentality: string) =>
+    post<{ session_id: string; state: ManagedState }>("/manage/play", { session_id, starting_xi, mentality }),
+  manageSecondHalf: (session_id: string, mentality: string) =>
+    post<{ session_id: string; state: ManagedState }>("/manage/second-half", { session_id, mentality }),
   modelDiagnostics: () => get<any>("/model/diagnostics"),
   realityOdds: (results: Record<string, [number, number]>, simulations = 2500) =>
     post<{ simulations: number; fixed_count: number; teams: OddsRow[]; standings: Record<string, any[]> }>(

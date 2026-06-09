@@ -220,6 +220,7 @@ export interface ManagedMatch {
   away_pens?: number | null;
   winner?: string | null;
   date?: string;
+  events?: MatchEvent[];
 }
 
 export interface ManagedState {
@@ -234,11 +235,20 @@ export interface ManagedState {
   group_table: GroupRow[];
   next_fixture: { stage: string; opponent: string; date?: string; venue?: string; city?: string } | null;
   last_round: ManagedMatch[];
+  last_managed_match: ManagedMatch | null;
   journey: ManagedMatch[];
   squad: ManagedSquadPlayer[];
   team_names: Record<string, string>;
   done: boolean;
   won: boolean;
+  awaiting_second_half: boolean;
+  half_time: { home: string; away: string; home_goals: number; away_goals: number; events: MatchEvent[] } | null;
+  expectation: { tier: string; label: string };
+  achievements: string[];
+  ratings: number[];
+  avg_rating: number | null;
+  form: string[];
+  review: string | null;
 }
 
 export interface JourneyMatch {

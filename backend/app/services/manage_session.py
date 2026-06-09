@@ -1,7 +1,8 @@
-"""In-memory session store for round-by-round managed tournaments.
+"""In-memory session store for round-by-round managed (career) tournaments.
 
-Sessions are ephemeral (process memory) — fine for local / single-instance use.
-A simple LRU-ish cap keeps memory bounded; the oldest sessions are evicted.
+Sessions are ephemeral (process memory). A simple cap bounds memory; the oldest
+sessions are evicted. The managed match is two-phase (first half -> half-time
+tactical switch -> second half).
 """
 from __future__ import annotations
 
@@ -16,37 +17,51 @@ _SESSIONS: "OrderedDict[str, ManagedTournament]" = OrderedDict()
 _MAX_SESSIONS = 200
 
 
-def _evict_if_needed() -> None:
+def _evict() -> None:
     while len(_SESSIONS) > _MAX_SESSIONS:
         _SESSIONS.popitem(last=False)
+
+
+def _get(session_id: str) -> ManagedTournament:
+    mt = _SESSIONS.get(session_id)
+    if mt is None:
+        raise KeyError("Session not found or expired — start a new career.")
+    _SESSIONS.move_to_end(session_id)
+    return mt
 
 
 def start(team: str, seed: Optional[int] = None) -> dict:
     data = load_tournament()
     if team not in data.teams:
         raise KeyError(f"Unknown team code: {team}")
-    squad = load_squads()[team]
-    mt = ManagedTournament(data, team, squad, seed)
+    squads = load_squads()
+    mt = ManagedTournament(data, team, squads[team], squads, seed)
     sid = uuid.uuid4().hex[:12]
     _SESSIONS[sid] = mt
     _SESSIONS.move_to_end(sid)
-    _evict_if_needed()
+    _evict()
     return {"session_id": sid, "state": mt.state()}
 
 
-def play(session_id: str, starting_xi: List[str]) -> dict:
-    mt = _SESSIONS.get(session_id)
-    if mt is None:
-        raise KeyError("Session not found or expired — start a new managed run.")
-    if mt.phase == "done":
-        return {"session_id": session_id, "state": mt.state()}
-    mt.play_round(starting_xi)
-    _SESSIONS.move_to_end(session_id)
+def preview(session_id: str, starting_xi: List[str], mentality: str = "balanced") -> dict:
+    mt = _get(session_id)
+    return {"preview": mt.preview(starting_xi, mentality)}
+
+
+def first_half(session_id: str, starting_xi: List[str], mentality: str = "balanced") -> dict:
+    mt = _get(session_id)
+    if mt.phase != "done" and mt.pending is None:
+        mt.play_first_half(starting_xi, mentality)
+    return {"session_id": session_id, "state": mt.state()}
+
+
+def second_half(session_id: str, mentality: str = "balanced") -> dict:
+    mt = _get(session_id)
+    if mt.pending is not None:
+        mt.play_second_half(mentality)
     return {"session_id": session_id, "state": mt.state()}
 
 
 def get(session_id: str) -> dict:
-    mt = _SESSIONS.get(session_id)
-    if mt is None:
-        raise KeyError("Session not found or expired.")
+    mt = _get(session_id)
     return {"session_id": session_id, "state": mt.state()}

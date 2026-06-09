@@ -1,13 +1,14 @@
-"""Round-by-round managed tournament.
+"""Round-by-round managed tournament (career mode).
 
-The user controls ONE nation and picks its XI for each match in turn; every other
-match auto-simulates around them. Carries fatigue (real schedule rest), momentum,
-and discipline (yellow accumulation + red cards -> next-match suspension) between
-rounds, so rotation actually matters.
+You control ONE nation. Each match you pick the XI + a mentality, watch it play
+out in two halves (with a half-time tactical switch), and everything else
+auto-sims. Carries fatigue, momentum and discipline (yellows->ban, reds) between
+rounds. Tracks a nation expectation, per-match ratings, achievements and form.
 
-State lives in a server-side session (see services/manage_session.py). The engine
-itself is a plain stepper: `state()` describes what to do next, `play_round(xi)`
-advances one match (managed) + auto-sims its round, returns the updated state.
+Two-phase managed match:
+  play_first_half(xi, mentality)  -> sims 0-45', stores HT state
+  play_second_half(mentality)     -> sims 45-90' (+ET/pens), finalises, auto-sims
+                                     the rest of the round, advances.
 """
 from __future__ import annotations
 
@@ -16,8 +17,14 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
-from app.engine.match import TeamStrength, simulate
-from app.engine.squad import lineup_delta
+from app.engine.match import (
+    RED_CARD_PROB,
+    TeamStrength,
+    _lambdas,
+    simulate,
+    win_expectancy,
+)
+from app.engine.squad import best_xi, lineup_delta
 from app.engine.tournament import (
     R32_PAIRINGS,
     KnockoutMatch,
@@ -36,15 +43,20 @@ from app.engine.tournament import (
 KO_ROUNDS = ["R32", "R16", "QF", "SF", "F"]
 KO_LABEL = {"R32": "Round of 32", "R16": "Round of 16", "QF": "Quarter-final",
             "SF": "Semi-final", "F": "Final"}
-YELLOW_PROB = 0.16   # per managed player, per match
+YELLOW_PROB = 0.16
 YELLOWS_FOR_BAN = 2
+# mentality -> (own goal multiplier, opponent goal multiplier). Attacking opens
+# the game up both ways; defensive shuts it down.
+MENTALITY = {"attacking": (1.20, 1.14), "balanced": (1.0, 1.0), "defensive": (0.84, 0.80)}
+SCORE_W = {"FWD": 6.0, "MID": 3.0, "DEF": 1.0, "GK": 0.02}
 
 
 class ManagedTournament:
-    def __init__(self, data, team: str, squad: list, seed: Optional[int]):
+    def __init__(self, data, team, squad, all_squads, seed):
         self.data = data
         self.team = team
         self.squad = squad
+        self.all_squads = all_squads
         self.rng = np.random.default_rng(seed)
         self.base_elo = {c: float(t["elo"]) for c, t in data.teams.items()}
         self.momentum: Dict[str, float] = {}
@@ -61,10 +73,10 @@ class ManagedTournament:
         self.matchdays = [gf[0:2], gf[2:4], gf[4:6]]
         self.md_index = 0
 
-        self.phase = "group"          # group -> knockout -> done
+        self.phase = "group"
         self.match_log: List[dict] = []
         self.journey: List[dict] = []
-        self.suspended: Dict[str, int] = {}   # player id -> bans remaining
+        self.suspended: Dict[str, int] = {}
         self.yellows: Dict[str, int] = {}
         self.alive = True
         self.eliminated_round: Optional[str] = None
@@ -73,17 +85,40 @@ class ManagedTournament:
 
         self.group_tables: Optional[Dict[str, List[TeamRecord]]] = None
         self.ko_round_idx = 0
-        self.cur_round: List[KnockoutMatch] = []   # current KO round matches
-        self.last_round_results: List[dict] = []   # matches just played (for the UI)
+        self.cur_round: List[KnockoutMatch] = []
+        self.last_round_results: List[dict] = []
+        self.last_managed_match: Optional[dict] = None   # full events for live replay
 
-    # ---------------------------------------------------------------- helpers
+        self.pending: Optional[dict] = None
+        self.ratings: List[float] = []
+        self.achievements: List[str] = []
+        self.form: List[str] = []   # 'W'/'D'/'L'
+        self.expectation = self._expectation()
+
+    # ---------------------------------------------------------- expectations
+    def _expectation(self) -> dict:
+        rank = sorted(self.base_elo.items(), key=lambda kv: kv[1], reverse=True)
+        pos = next(i for i, (c, _) in enumerate(rank) if c == self.team)
+        if pos < 3:
+            tier, label = "F", "Win the World Cup"
+        elif pos < 8:
+            tier, label = "SF", "Reach the semi-finals"
+        elif pos < 16:
+            tier, label = "QF", "Reach the quarter-finals"
+        elif pos < 24:
+            tier, label = "R16", "Reach the Round of 16"
+        else:
+            tier, label = "groups", "Get out of the group"
+        return {"tier": tier, "label": label}
+
+    # ----------------------------------------------------------------- helpers
     def _meta_for(self, match_no: int) -> dict:
         for m in self.data.knockout_meta:
             if m.get("match_no") == match_no:
                 return m
         return {}
 
-    def _sim(self, home, away, date, country, xi_ids=None, knockout=False):
+    def _base_lambdas(self, home, away, date, country, xi_ids):
         sh = TeamStrength(home, self.base_elo[home])
         sa = TeamStrength(away, self.base_elo[away])
         if xi_ids is not None:
@@ -92,6 +127,243 @@ class ManagedTournament:
                 sh.lineup_delta = ld
             elif away == self.team:
                 sa.lineup_delta = ld
+        h_adv = (_home_adv(home, away, country)
+                 + _net_fatigue_adv(home, away, date, self.last_played)
+                 + _momentum_adv(home, away, self.momentum))
+        return _lambdas(sh, sa, h_adv)
+
+    def _xi_players(self, team, xi_ids):
+        if team == self.team and xi_ids:
+            by = {p.id: p for p in self.squad}
+            line = [by[i] for i in xi_ids if i in by]
+            if len(line) == 11:
+                return line
+        return best_xi(self.all_squads.get(team, []))
+
+    def _gen_events(self, team, players, goals, lo, hi):
+        if goals <= 0 or not players:
+            return []
+        w = np.array([SCORE_W.get(p.position, 1.0) * (p.rating / 80.0) for p in players])
+        w = w / w.sum()
+        mins = sorted(int(m) for m in self.rng.integers(lo, hi + 1, size=int(goals)))
+        out = []
+        for k in range(int(goals)):
+            scorer = players[int(self.rng.choice(len(players), p=w))]
+            out.append({"type": "goal", "minute": mins[k], "team": team,
+                        "scorer": scorer.name, "scorer_id": scorer.id,
+                        "position": scorer.position, "assist": None})
+        return out
+
+    # --------------------------------------------------------------- preview
+    def preview(self, xi_ids, mentality="balanced") -> dict:
+        mm = self._current_managed_match()
+        if not mm:
+            return {}
+        home, away, date, country = mm["home"], mm["away"], mm["date"], mm["country"]
+        lh, la = self._base_lambdas(home, away, date, country, xi_ids)
+        own, opp = MENTALITY.get(mentality, (1.0, 1.0))
+        if home == self.team:
+            lh, la = lh * own, la * opp
+        else:
+            la, lh = la * own, lh * opp
+        # Poisson outcome split over a small grid.
+        import math
+        grid = 8
+        ph = [math.exp(-lh) * lh ** k / math.factorial(k) for k in range(grid)]
+        pa = [math.exp(-la) * la ** k / math.factorial(k) for k in range(grid)]
+        hw = dw = aw = 0.0
+        for i in range(grid):
+            for j in range(grid):
+                p = ph[i] * pa[j]
+                if i > j: hw += p
+                elif i == j: dw += p
+                else: aw += p
+        tot = hw + dw + aw
+        we_win = (hw if home == self.team else aw) / tot
+        we_draw = dw / tot
+        we_lose = (aw if home == self.team else hw) / tot
+        opp_team = away if home == self.team else home
+        return {
+            "win": round(we_win, 3), "draw": round(we_draw, 3), "lose": round(we_lose, 3),
+            "your_key": _top_name(self._xi_players(self.team, xi_ids)),
+            "opp_key": _top_name(best_xi(self.all_squads.get(opp_team, []))),
+        }
+
+    # --------------------------------------------------------- match plumbing
+    def _current_managed_match(self):
+        if self.phase == "group":
+            for fx in self.matchdays[self.md_index]:
+                if self.team in (fx["home"], fx["away"]):
+                    return {"kind": "group", "home": fx["home"], "away": fx["away"],
+                            "date": fx.get("date"), "country": fx.get("country", ""),
+                            "knockout": False, "fx": fx}
+        elif self.phase == "knockout":
+            km = self._managed_km()
+            if km:
+                return {"kind": "ko", "home": km.home, "away": km.away,
+                        "date": km.meta.get("date"), "country": km.meta.get("country", ""),
+                        "knockout": True, "km": km}
+        return None
+
+    def _managed_km(self):
+        for km in self.cur_round:
+            if self.team in (km.home, km.away):
+                return km
+        return None
+
+    # --------------------------------------------------------- two-phase play
+    def play_first_half(self, xi_ids, mentality="balanced"):
+        mm = self._current_managed_match()
+        if mm is None or self.pending is not None:
+            return
+        home, away, date, country = mm["home"], mm["away"], mm["date"], mm["country"]
+        lh, la = self._base_lambdas(home, away, date, country, xi_ids)
+        own, opp = MENTALITY.get(mentality, (1.0, 1.0))
+        if home == self.team:
+            elh, ela = lh * own, la * opp
+        else:
+            elh, ela = lh * opp, la * own
+        fh_home = int(self.rng.poisson(elh * 0.5))
+        fh_away = int(self.rng.poisson(ela * 0.5))
+        home_pl = self._xi_players(home, xi_ids)
+        away_pl = self._xi_players(away, xi_ids)
+        events = (self._gen_events(home, home_pl, fh_home, 1, 45)
+                  + self._gen_events(away, away_pl, fh_away, 1, 45))
+        events.sort(key=lambda e: e["minute"])
+        self.pending = {
+            "mm": mm, "xi": xi_ids, "home": home, "away": away, "date": date,
+            "country": country, "lh": lh, "la": la, "fh_home": fh_home,
+            "fh_away": fh_away, "fh_events": events, "ment1": mentality,
+        }
+
+    def play_second_half(self, mentality="balanced"):
+        p = self.pending
+        if p is None:
+            return
+        home, away = p["home"], p["away"]
+        lh, la = p["lh"], p["la"]
+        own, opp = MENTALITY.get(mentality, (1.0, 1.0))
+        if home == self.team:
+            elh, ela = lh * own, la * opp
+        else:
+            elh, ela = lh * opp, la * own
+        sh_home = int(self.rng.poisson(elh * 0.5))
+        sh_away = int(self.rng.poisson(ela * 0.5))
+        home_pl = self._xi_players(home, p["xi"])
+        away_pl = self._xi_players(away, p["xi"])
+        events = list(p["fh_events"])
+        events += self._gen_events(home, home_pl, sh_home, 46, 90)
+        events += self._gen_events(away, away_pl, sh_away, 46, 90)
+
+        hg = p["fh_home"] + sh_home
+        ag = p["fh_away"] + sh_away
+        knockout = p["mm"]["knockout"]
+        penalties = False
+        hp = ap = None
+        red = None
+        if self.rng.random() < RED_CARD_PROB:
+            red = int(self.rng.integers(25, 90))
+
+        if knockout and hg == ag:
+            # Extra time then penalties.
+            et_h = int(self.rng.poisson(elh / 6.0))
+            et_a = int(self.rng.poisson(ela / 6.0))
+            events += self._gen_events(home, home_pl, et_h, 91, 120)
+            events += self._gen_events(away, away_pl, et_a, 91, 120)
+            hg += et_h
+            ag += et_a
+            if hg == ag:
+                penalties = True
+                p_home = 0.5 + (win_expectancy(self.base_elo[home], self.base_elo[away]) - 0.5) * 0.3
+                hp, ap = 0, 0
+                for _ in range(5):
+                    hp += int(self.rng.random() < 0.75 * (p_home / 0.5) * 0.5 + 0.375)
+                    ap += int(self.rng.random() < 0.75)
+                while hp == ap:
+                    hp += int(self.rng.random() < 0.75)
+                    ap += int(self.rng.random() < 0.75)
+        events.sort(key=lambda e: e["minute"])
+
+        winner = None
+        if hg > ag or (penalties and (hp or 0) > (ap or 0)):
+            winner = home
+        elif ag > hg or (penalties and (ap or 0) > (hp or 0)):
+            winner = away
+
+        md = {"round": "groups" if not knockout else KO_ROUNDS[self.ko_round_idx],
+              "home": home, "away": away, "home_goals": hg, "away_goals": ag,
+              "penalties": penalties, "home_pens": hp, "away_pens": ap,
+              "winner": winner, "date": p["date"], "events": events}
+
+        # Apply to standings / momentum / rest.
+        if not knockout:
+            self.group_records[home].apply(away, hg, ag)
+            self.group_records[away].apply(home, ag, hg)
+            _apply_result_momentum(self.momentum, home, away, hg, ag)
+        else:
+            update_momentum(self.momentum, winner, MOMENTUM_WIN)
+            update_momentum(self.momentum, away if winner == home else home, -MOMENTUM_WIN)
+        if p["date"]:
+            self.last_played[home] = p["date"]
+            self.last_played[away] = p["date"]
+
+        self.match_log.append(md)
+        self.journey.append(md)
+        self.last_managed_match = md
+        self.last_round_results = [md]
+        red_for_us = red if (red and (home == self.team or away == self.team)) else None
+        self._record_discipline(p["xi"], red_for_us)
+        self._rate_and_track(md)
+
+        # Auto-sim the rest of this round, then advance.
+        self._finish_round(p["mm"], winner)
+        self.pending = None
+
+    def _finish_round(self, mm, managed_winner):
+        if mm["kind"] == "group":
+            for fx in self.matchdays[self.md_index]:
+                if self.team in (fx["home"], fx["away"]):
+                    continue
+                res = self._autosim(fx["home"], fx["away"], fx.get("date"), fx.get("country", ""))
+                self.group_records[fx["home"]].apply(fx["away"], res[0], res[1])
+                self.group_records[fx["away"]].apply(fx["home"], res[1], res[0])
+                self.last_round_results.append(self._auto_md(fx["home"], fx["away"], res, fx.get("date"), "groups"))
+            self.md_index += 1
+            if self.md_index >= 3:
+                self._finish_group_stage()
+        else:
+            managed_km = self._managed_km()
+            for km in self.cur_round:
+                if km is managed_km:
+                    km.winner_code = managed_winner
+                    km.loser_code = km.away if managed_winner == km.home else km.home
+                    continue
+                res = self._autosim(km.home, km.away, km.meta.get("date"), km.meta.get("country", ""), knockout=True)
+                km.winner_code, km.loser_code = res[2], res[3]
+                self.last_round_results.append(self._auto_md(km.home, km.away, res, km.meta.get("date"), KO_ROUNDS[self.ko_round_idx]))
+            if managed_km and managed_km.loser_code == self.team:
+                self.alive = False
+                self.eliminated_round = KO_ROUNDS[self.ko_round_idx]
+                self.phase = "done"
+                self._final_review()
+                return
+            if KO_ROUNDS[self.ko_round_idx] == "F":
+                self.champion = managed_km.winner_code
+                self.runner_up = managed_km.loser_code
+                self.phase = "done"
+                self._final_review()
+                return
+            winners = [km.winner_code for km in self.cur_round]
+            nxt = KO_ROUNDS[self.ko_round_idx + 1]
+            start_no = {"R16": 89, "QF": 97, "SF": 101, "F": 103}[nxt]
+            self.cur_round = [KnockoutMatch(start_no + k, nxt, home=winners[2 * k],
+                              away=winners[2 * k + 1], meta=self._meta_for(start_no + k))
+                              for k in range(len(winners) // 2)]
+            self.ko_round_idx += 1
+
+    def _autosim(self, home, away, date, country, knockout=False):
+        sh = TeamStrength(home, self.base_elo[home])
+        sa = TeamStrength(away, self.base_elo[away])
         h_adv = (_home_adv(home, away, country)
                  + _net_fatigue_adv(home, away, date, self.last_played)
                  + _momentum_adv(home, away, self.momentum))
@@ -104,69 +376,70 @@ class ManagedTournament:
             loser = away if res.winner == "home" else home
             update_momentum(self.momentum, winner, MOMENTUM_WIN)
             update_momentum(self.momentum, loser, -MOMENTUM_WIN)
-        else:
-            _apply_result_momentum(self.momentum, home, away, res.home_goals, res.away_goals)
-        return res
+            return (res.home_goals, res.away_goals, winner, loser, res)
+        _apply_result_momentum(self.momentum, home, away, res.home_goals, res.away_goals)
+        return (res.home_goals, res.away_goals)
 
-    def _record_discipline(self, xi_ids: List[str], red_minute):
-        """Roll yellows for the managed XI, apply reds, tick down bans."""
-        # Decrement existing bans first (this match they sat out / now served).
+    def _auto_md(self, home, away, res, date, rnd):
+        return {"round": rnd, "home": home, "away": away, "home_goals": res[0],
+                "away_goals": res[1], "penalties": False, "winner":
+                (res[2] if len(res) > 2 else (home if res[0] > res[1] else away if res[1] > res[0] else None)),
+                "date": date, "events": []}
+
+    # ------------------------------------------------------- discipline/rating
+    def _record_discipline(self, xi_ids, red_minute):
         for pid in list(self.suspended):
             self.suspended[pid] -= 1
             if self.suspended[pid] <= 0:
                 del self.suspended[pid]
-        # Yellows this match.
         for pid in xi_ids:
             if self.rng.random() < YELLOW_PROB:
                 self.yellows[pid] = self.yellows.get(pid, 0) + 1
                 if self.yellows[pid] >= YELLOWS_FOR_BAN:
                     self.suspended[pid] = 1
                     self.yellows[pid] = 0
-        # A red card on our side -> a player banned next match.
         if red_minute is not None and xi_ids:
-            pid = xi_ids[int(self.rng.integers(len(xi_ids)))]
-            self.suspended[pid] = 1
+            self.suspended[xi_ids[int(self.rng.integers(len(xi_ids)))]] = 1
 
-    def _match_dict(self, home, away, res, date=None, rnd="groups"):
-        return {
-            "round": rnd, "home": home, "away": away,
-            "home_goals": res.home_goals, "away_goals": res.away_goals,
-            "penalties": res.went_penalties, "home_pens": res.home_pens,
-            "away_pens": res.away_pens, "winner": (home if res.winner == "home"
-                                                   else away if res.winner == "away" else None),
-            "date": date,
-        }
+    def _rate_and_track(self, md):
+        us_home = md["home"] == self.team
+        gf = md["home_goals"] if us_home else md["away_goals"]
+        ga = md["away_goals"] if us_home else md["home_goals"]
+        won = md["winner"] == self.team
+        drew = md["winner"] is None
+        rating = 6.0 + (gf - ga) * 0.8 + (1.2 if won else -1.0 if not drew else 0)
+        if ga == 0:
+            rating += 0.6
+        rating = round(max(3.0, min(10.0, rating)), 1)
+        self.ratings.append(rating)
+        self.form.append("W" if won else "D" if drew else "L")
+        opp = md["away"] if us_home else md["home"]
+        # Achievements.
+        if ga == 0 and "Clean sheet" not in self.achievements:
+            self.achievements.append("Clean sheet")
+        if gf >= 3 and "Scored 3+ in a match" not in self.achievements:
+            self.achievements.append("Scored 3+ in a match")
+        top_rank = sorted(self.base_elo.items(), key=lambda kv: kv[1], reverse=True)
+        top10 = {c for c, _ in top_rank[:10]}
+        if won and opp in top10 and "Beat a top-10 nation" not in self.achievements:
+            self.achievements.append("Beat a top-10 nation")
+        if md.get("penalties") and won and "Won a penalty shootout" not in self.achievements:
+            self.achievements.append("Won a penalty shootout")
 
-    # --------------------------------------------------------------- stepping
-    def play_round(self, xi_ids: List[str]) -> None:
-        self.last_round_results = []
-        if self.phase == "group":
-            self._play_group_matchday(xi_ids)
-        elif self.phase == "knockout":
-            self._play_ko_round(xi_ids)
+    def _final_review(self):
+        order = ["groups", "R32", "R16", "QF", "SF", "F", "W"]
+        reached = "W" if self.champion == self.team else (self.eliminated_round or "groups")
+        exp_idx = order.index(self.expectation["tier"]) if self.expectation["tier"] in order else 0
+        reached_idx = order.index(reached) if reached in order else 0
+        if reached_idx > exp_idx:
+            self.review = "Expectations exceeded! 🎉"
+        elif reached_idx == exp_idx:
+            self.review = "Expectations met. 👍"
+        else:
+            self.review = "Below expectations. 😞"
 
-    def _play_group_matchday(self, xi_ids):
-        for fx in self.matchdays[self.md_index]:
-            home, away = fx["home"], fx["away"]
-            date, country = fx.get("date"), fx.get("country", "")
-            managed = self.team in (home, away)
-            res = self._sim(home, away, date, country,
-                            xi_ids=xi_ids if managed else None)
-            self.group_records[home].apply(away, res.home_goals, res.away_goals)
-            self.group_records[away].apply(home, res.away_goals, res.home_goals)
-            md = self._match_dict(home, away, res, date, "groups")
-            self.match_log.append(md)
-            self.last_round_results.append(md)
-            if managed:
-                self.journey.append(md)
-                red = res.red_home if home == self.team else res.red_away
-                self._record_discipline(xi_ids, red)
-        self.md_index += 1
-        if self.md_index >= 3:
-            self._finish_group_stage()
-
+    # --------------------------------------------------------- group stage end
     def _finish_group_stage(self):
-        # Auto-simulate every other group in full (fatigue/momentum-aware).
         tables: Dict[str, List[TeamRecord]] = {}
         managed_table = _sort_group([self.group_records[c] for c in self.members[self.group]])
         tables[self.group] = managed_table
@@ -179,19 +452,24 @@ class ManagedTournament:
             tables[g] = table
             self.match_log.extend(log)
         self.group_tables = tables
-
-        # Did the managed team qualify (top 2, or one of 8 best thirds)?
         pos = next(i for i, r in enumerate(managed_table) if r.code == self.team)
         qualified = pos <= 1
         if pos == 2:
             thirds = rank_third_placed([t[2] for t in tables.values() if len(t) >= 3])
             qualified = self.team in [r.code for r in thirds[:8]]
+        if pos == 0 and "Topped the group" not in self.achievements:
+            self.achievements.append("Topped the group")
         if not qualified:
             self.alive = False
             self.eliminated_round = "groups"
             self.phase = "done"
+            self._final_review()
             return
-        self._build_first_ko_round()
+        self.phase = "knockout"
+        self.ko_round_idx = 0
+        slot = self._slot_map()
+        self.cur_round = [KnockoutMatch(73 + i, "R32", home=slot.get(sh), away=slot.get(sa),
+                          meta=self._meta_for(73 + i)) for i, (sh, sa) in enumerate(R32_PAIRINGS)]
 
     def _slot_map(self):
         slot: Dict[str, str] = {}
@@ -205,113 +483,53 @@ class ManagedTournament:
             slot[f"T{i}"] = r.code
         return slot
 
-    def _build_first_ko_round(self):
-        self.phase = "knockout"
-        self.ko_round_idx = 0
-        slot = self._slot_map()
-        self.cur_round = []
-        for i, (sh, sa) in enumerate(R32_PAIRINGS):
-            no = 73 + i
-            self.cur_round.append(KnockoutMatch(no, "R32", home=slot.get(sh),
-                                                away=slot.get(sa), meta=self._meta_for(no)))
-
-    def _managed_match_in_round(self):
-        for km in self.cur_round:
-            if self.team in (km.home, km.away):
-                return km
-        return None
-
-    def _play_ko_round(self, xi_ids):
-        rnd = KO_ROUNDS[self.ko_round_idx]
-        managed_km = self._managed_match_in_round()
-        for km in self.cur_round:
-            is_managed = km is managed_km
-            date = km.meta.get("date")
-            res = self._sim(km.home, km.away, date, km.meta.get("country", ""),
-                            xi_ids=xi_ids if is_managed else None, knockout=True)
-            km.result = res
-            km.winner_code = km.home if res.winner == "home" else km.away
-            km.loser_code = km.away if res.winner == "home" else km.home
-            md = self._match_dict(km.home, km.away, res, date, rnd)
-            self.match_log.append(md)
-            self.last_round_results.append(md)
-            if is_managed:
-                self.journey.append(md)
-                red = res.red_home if km.home == self.team else res.red_away
-                self._record_discipline(xi_ids, red)
-
-        # Did we go through?
-        if managed_km and managed_km.loser_code == self.team:
-            self.alive = False
-            self.eliminated_round = rnd
-            self.phase = "done"
-            return
-        if rnd == "F":
-            self.champion = managed_km.winner_code
-            self.runner_up = managed_km.loser_code
-            self.phase = "done"
-            return
-        # Build next round from winners.
-        winners = [km.winner_code for km in self.cur_round]
-        nxt_round = KO_ROUNDS[self.ko_round_idx + 1]
-        start_no = {"R16": 89, "QF": 97, "SF": 101, "F": 103}[nxt_round]
-        self.cur_round = [
-            KnockoutMatch(start_no + k, nxt_round,
-                          home=winners[2 * k], away=winners[2 * k + 1],
-                          meta=self._meta_for(start_no + k))
-            for k in range(len(winners) // 2)
-        ]
-        self.ko_round_idx += 1
-
     # ----------------------------------------------------------------- output
     def _squad_payload(self):
-        out = []
-        for p in self.squad:
-            out.append({
-                "id": p.id, "name": p.name, "position": p.position,
-                "number": p.number, "rating": p.rating, "club": p.club,
-                "photo_url": getattr(p, "photo_url", ""),
-                "suspended": self.suspended.get(p.id, 0) > 0,
-                "yellows": self.yellows.get(p.id, 0),
-            })
-        return out
+        return [{
+            "id": p.id, "name": p.name, "position": p.position, "number": p.number,
+            "rating": p.rating, "club": p.club, "photo_url": getattr(p, "photo_url", ""),
+            "suspended": self.suspended.get(p.id, 0) > 0, "yellows": self.yellows.get(p.id, 0),
+        } for p in self.squad]
 
     def _next_fixture(self):
-        if self.phase == "group":
-            for fx in self.matchdays[self.md_index]:
-                if self.team in (fx["home"], fx["away"]):
-                    opp = fx["away"] if fx["home"] == self.team else fx["home"]
-                    return {"stage": f"Group {self.group} · Matchday {self.md_index + 1}",
-                            "opponent": opp, "date": fx.get("date"),
-                            "venue": fx.get("venue"), "city": fx.get("city")}
-        elif self.phase == "knockout":
-            km = self._managed_match_in_round()
-            if km:
-                opp = km.away if km.home == self.team else km.home
-                return {"stage": KO_LABEL[KO_ROUNDS[self.ko_round_idx]],
-                        "opponent": opp, "date": km.meta.get("date"),
-                        "venue": km.meta.get("venue"), "city": km.meta.get("city")}
-        return None
+        mm = self._current_managed_match()
+        if not mm:
+            return None
+        opp = mm["away"] if mm["home"] == self.team else mm["home"]
+        stage = (f"Group {self.group} · Matchday {self.md_index + 1}" if mm["kind"] == "group"
+                 else KO_LABEL[KO_ROUNDS[self.ko_round_idx]])
+        return {"stage": stage, "opponent": opp, "date": mm["date"],
+                "venue": (mm.get("fx") or mm.get("km").meta if mm.get("km") else {}).get("venue") if mm.get("fx") else (mm.get("km").meta.get("venue") if mm.get("km") else None),
+                "home": mm["home"] == self.team}
 
     def state(self) -> dict:
         names = {c: t["name"] for c, t in self.data.teams.items()}
-        table = None
         if self.group_tables:
             table = [r.as_dict() for r in self.group_tables[self.group]]
         else:
-            table = [r.as_dict() for r in
-                     _sort_group([self.group_records[c] for c in self.members[self.group]])]
+            table = [r.as_dict() for r in _sort_group([self.group_records[c] for c in self.members[self.group]])]
+        ht = None
+        if self.pending:
+            ht = {"home": self.pending["home"], "away": self.pending["away"],
+                  "home_goals": self.pending["fh_home"], "away_goals": self.pending["fh_away"],
+                  "events": self.pending["fh_events"]}
         return {
             "team": self.team, "team_name": names[self.team], "group": self.group,
             "phase": self.phase, "alive": self.alive,
             "eliminated_round": self.eliminated_round, "champion": self.champion,
             "champion_name": names.get(self.champion) if self.champion else None,
-            "group_table": table,
-            "next_fixture": self._next_fixture(),
-            "last_round": self.last_round_results,
-            "journey": self.journey,
-            "squad": self._squad_payload(),
-            "team_names": names,
-            "done": self.phase == "done",
-            "won": self.champion == self.team,
+            "group_table": table, "next_fixture": self._next_fixture(),
+            "last_round": self.last_round_results, "last_managed_match": self.last_managed_match,
+            "journey": self.journey, "squad": self._squad_payload(), "team_names": names,
+            "done": self.phase == "done", "won": self.champion == self.team,
+            "awaiting_second_half": self.pending is not None, "half_time": ht,
+            "expectation": self.expectation, "achievements": self.achievements,
+            "ratings": self.ratings, "avg_rating": round(sum(self.ratings) / len(self.ratings), 1) if self.ratings else None,
+            "form": self.form[-5:], "review": getattr(self, "review", None),
         }
+
+
+def _top_name(players):
+    if not players:
+        return None
+    return max(players, key=lambda p: p.rating).name

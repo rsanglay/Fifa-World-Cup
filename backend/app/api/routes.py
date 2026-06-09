@@ -15,6 +15,7 @@ from app.engine.squad import FORMATIONS, best_xi
 from app.schemas import (
     LineupRequest,
     ManagePlayRequest,
+    ManageSecondHalfRequest,
     ManageSimRequest,
     ManageStartRequest,
     MatchPredictRequest,
@@ -142,10 +143,27 @@ def manage_start(req: ManageStartRequest):
         raise HTTPException(404, str(e))
 
 
+@router.post("/manage/preview")
+def manage_preview(req: ManagePlayRequest):
+    try:
+        return manage_session.preview(req.session_id, req.starting_xi, req.mentality)
+    except KeyError as e:
+        raise HTTPException(404, str(e))
+
+
 @router.post("/manage/play")
 def manage_play(req: ManagePlayRequest):
+    """Play the first half of the managed match (then await the half-time switch)."""
     try:
-        return manage_session.play(req.session_id, req.starting_xi)
+        return manage_session.first_half(req.session_id, req.starting_xi, req.mentality)
+    except KeyError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.post("/manage/second-half")
+def manage_second_half(req: ManageSecondHalfRequest):
+    try:
+        return manage_session.second_half(req.session_id, req.mentality)
     except KeyError as e:
         raise HTTPException(404, str(e))
 

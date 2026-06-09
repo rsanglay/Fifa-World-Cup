@@ -41,6 +41,12 @@ class ManageStartRequest(BaseModel):
 class ManagePlayRequest(BaseModel):
     session_id: str
     starting_xi: List[str] = Field(default_factory=list)
+    mentality: str = "balanced"
+
+
+class ManageSecondHalfRequest(BaseModel):
+    session_id: str
+    mentality: str = "balanced"
 
 
 class RealityRequest(BaseModel):
