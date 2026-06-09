@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { api, flag } from "../api/client";
 import Bracket from "../components/Bracket";
 import LineupPicker from "../components/LineupPicker";
+import PitchLineup from "../components/PitchLineup";
 import CinematicSim from "../components/CinematicSim";
 import Awards from "../components/Awards";
 import PlayerPhoto from "../components/PlayerPhoto";
@@ -289,6 +290,7 @@ function ManageSim({ onBack }: { onBack: () => void }) {
   const [odds, setOdds] = useState<OddsRow | null>(null);
   const [busy, setBusy] = useState(false);
   const [career, setCareer] = useState(false);
+  const [lineupView, setLineupView] = useState<"pitch" | "list">("pitch");
   const [resumeSid, setResumeSid] = useState<string | undefined>(undefined);
   const active = careerStore.getActive();
   const history = careerStore.getHistory();
@@ -430,13 +432,15 @@ function ManageSim({ onBack }: { onBack: () => void }) {
             sim</strong>: one XI, whole tournament at once.
           </p>
 
-          <LineupPicker
-            squad={detail.squad}
-            selected={xi}
-            formation={formation}
-            onToggle={toggle}
-            onFormation={setFormation}
-          />
+          <div className="flex justify-end gap-1">
+            <button onClick={() => setLineupView("pitch")} className={`rounded-lg px-3 py-1 text-xs ${lineupView === "pitch" ? "bg-gold text-ink" : "bg-white/5 text-white/70"}`}>⚽ Pitch</button>
+            <button onClick={() => setLineupView("list")} className={`rounded-lg px-3 py-1 text-xs ${lineupView === "list" ? "bg-gold text-ink" : "bg-white/5 text-white/70"}`}>☰ List</button>
+          </div>
+          {lineupView === "pitch" ? (
+            <PitchLineup squad={detail.squad} selected={xi} formation={formation} onChange={setXi} onFormation={setFormation} />
+          ) : (
+            <LineupPicker squad={detail.squad} selected={xi} formation={formation} onToggle={toggle} onFormation={setFormation} />
+          )}
 
           <div className="card p-3">
             <div className="mb-2 text-sm font-semibold text-white/60">

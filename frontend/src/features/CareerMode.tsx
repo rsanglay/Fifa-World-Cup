@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api, flag } from "../api/client";
 import LineupPicker from "../components/LineupPicker";
+import PitchLineup from "../components/PitchLineup";
 import Confetti from "../components/Confetti";
 import ShareButton from "../components/ShareButton";
 import { sound } from "../lib/sound";
@@ -110,6 +111,7 @@ export default function CareerMode({ team, onExit, resumeSession }: { team: stri
           state={state} xi={xi} formation={formation} mentality={mentality} preview={preview}
           suspended={suspended} busy={busy}
           onToggle={(id: string) => setXi((c) => c.includes(id) ? c.filter((x) => x !== id) : [...c, id])}
+          onSetXi={setXi}
           onFormation={(f: string) => { setFormation(f); setXi(pickXI(state.squad, f)); }}
           onMentality={setMentality} onAuto={() => setXi(pickXI(state.squad, formation))} onKickOff={kickOff}
         />
@@ -168,9 +170,10 @@ function CareerHeader({ state, team, onExit }: { state: ManagedState; team: stri
 }
 
 /* ------------------------------------------------------------- select phase */
-function SelectPhase({ state, xi, formation, mentality, preview, suspended, busy, onToggle, onFormation, onMentality, onAuto, onKickOff }: any) {
+function SelectPhase({ state, xi, formation, mentality, preview, suspended, busy, onToggle, onSetXi, onFormation, onMentality, onAuto, onKickOff }: any) {
   const names = state.team_names;
   const nf = state.next_fixture;
+  const [view, setView] = useState<"pitch" | "list">("pitch");
   return (
     <>
       <div className="card p-4">
@@ -215,7 +218,15 @@ function SelectPhase({ state, xi, formation, mentality, preview, suspended, busy
           <div className="mt-2 text-xs text-red-300">🚫 {state.squad.filter((p: any) => p.suspended).map((p: any) => p.name).join(", ")}</div>
         )}
       </div>
-      <LineupPicker squad={state.squad as unknown as Player[]} selected={xi} formation={formation} onToggle={onToggle} onFormation={onFormation} unavailable={suspended} />
+      <div className="flex justify-end gap-1">
+        <button onClick={() => setView("pitch")} className={`rounded-lg px-3 py-1 text-xs ${view === "pitch" ? "bg-gold text-ink" : "bg-white/5 text-white/70"}`}>⚽ Pitch</button>
+        <button onClick={() => setView("list")} className={`rounded-lg px-3 py-1 text-xs ${view === "list" ? "bg-gold text-ink" : "bg-white/5 text-white/70"}`}>☰ List</button>
+      </div>
+      {view === "pitch" ? (
+        <PitchLineup squad={state.squad as unknown as Player[]} selected={xi} formation={formation} onChange={onSetXi} onFormation={onFormation} unavailable={suspended} />
+      ) : (
+        <LineupPicker squad={state.squad as unknown as Player[]} selected={xi} formation={formation} onToggle={onToggle} onFormation={onFormation} unavailable={suspended} />
+      )}
     </>
   );
 }
