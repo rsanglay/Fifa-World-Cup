@@ -4,7 +4,12 @@
 
 /* FM / EAFC hybrid design system
    background #0d1117 · surface #161b22 · accent #00d4aa · danger #e63946
-   text #f0f6fc / #8b949e · Inter (UI) + Bebas Neue (scores, big numbers) */
+   text #f0f6fc / #8b949e · Inter (UI) + Bebas Neue (scores, big numbers)
+
+   NOTE: component classes below use raw CSS for the design tokens (not
+   @apply on config-extended utilities) so they compile independently of the
+   Tailwind config cache — a dev server started before a config change would
+   otherwise crash on `@apply bg-accent`. */
 :root {
   font-family: "Inter", system-ui, sans-serif;
   --bg: #0d1117;
@@ -28,38 +33,97 @@ body {
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  @apply rounded-2xl shadow-lg;
+  border-radius: 1rem;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.3), 0 4px 6px -4px rgb(0 0 0 / 0.3);
 }
 
 /* Pill buttons, accent colour, hover scales to 1.03. */
 .btn {
-  @apply px-4 py-2 rounded-full font-semibold transition active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  transition: transform 150ms ease, filter 150ms ease, background 150ms ease;
+}
+.btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 .btn:hover:not(:disabled) {
   transform: scale(1.03);
 }
 .btn-primary {
-  @apply btn bg-accent text-ink;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  transition: transform 150ms ease, filter 150ms ease;
+  background: var(--accent);
+  color: #0d1117;
 }
 .btn-primary:hover:not(:disabled) {
+  transform: scale(1.03);
   filter: brightness(1.1);
 }
+.btn-primary:active:not(:disabled) {
+  transform: scale(0.95);
+}
+.btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 .btn-ghost {
-  @apply btn bg-white/5 hover:bg-white/10 text-txt-primary;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  transition: transform 150ms ease, background 150ms ease;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+.btn-ghost:hover:not(:disabled) {
+  transform: scale(1.03);
+  background: rgba(255, 255, 255, 0.1);
+}
+.btn-ghost:active:not(:disabled) {
+  transform: scale(0.95);
+}
+.btn-ghost:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 .btn-danger {
-  @apply btn bg-danger text-txt-primary;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  transition: transform 150ms ease, filter 150ms ease;
+  background: var(--danger);
+  color: var(--text-primary);
+}
+.btn-danger:hover:not(:disabled) {
+  transform: scale(1.03);
 }
 
 /* FM-style scoreboard bar (team names in caps, Bebas Neue 48px score). */
 .scoreboard {
   background: rgba(22, 27, 34, 0.85);
   backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  @apply flex items-center justify-center gap-4 rounded-2xl px-4 py-2;
+  border-radius: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
 }
 .scoreboard .team {
-  @apply uppercase tracking-widest text-sm font-bold text-txt-primary;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 .scoreboard .score {
   font-family: "Bebas Neue", Impact, sans-serif;
@@ -77,7 +141,12 @@ body {
 .skel {
   background: linear-gradient(90deg, #161b22 25%, #1f2733 50%, #161b22 75%);
   background-size: 1000px 100%;
-  @apply animate-shimmer rounded;
+  border-radius: 0.25rem;
+  animation: shimmer 2s linear infinite;
+}
+@keyframes shimmer {
+  0% { background-position: -500px 0; }
+  100% { background-position: 500px 0; }
 }
 
 ::-webkit-scrollbar {
