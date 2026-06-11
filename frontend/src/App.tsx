@@ -7,12 +7,17 @@ import ErrorBoundary from "./components/ErrorBoundary";
 const TournamentHub = lazy(() => import("./features/TournamentHub"));
 const PredictHub = lazy(() => import("./features/PredictHub"));
 const Simulator = lazy(() => import("./features/Simulator"));
+const Multiplayer = lazy(() => import("./features/Multiplayer"));
+const PredictionLeague = lazy(() => import("./features/PredictionLeague"));
+const Profile = lazy(() => import("./features/Profile"));
 
 const NAV = [
   { to: "/", label: "Home", end: true },
   { to: "/tournament", label: "Tournament" },
   { to: "/predict", label: "Predict" },
   { to: "/simulator", label: "Simulator" },
+  { to: "/multiplayer", label: "Multiplayer" },
+  { to: "/profile", label: "Profile" },
 ];
 
 export default function App() {
@@ -71,6 +76,9 @@ export default function App() {
             <Route path="/tournament" element={<TournamentHub />} />
             <Route path="/predict" element={<PredictHub />} />
             <Route path="/simulator" element={<Simulator />} />
+            <Route path="/multiplayer" element={<Multiplayer />} />
+            <Route path="/predictions" element={<PredictionLeague />} />
+            <Route path="/profile" element={<Profile />} />
             {/* Redirects for old deep links */}
             <Route path="/teams" element={<Navigate to="/tournament?tab=teams" replace />} />
             <Route path="/groups" element={<Navigate to="/tournament?tab=groups" replace />} />

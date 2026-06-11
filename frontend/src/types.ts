@@ -26,17 +26,19 @@ export interface Player {
 }
 
 export interface MatchEvent {
-  type?: "goal" | "red" | "yellow" | "chance" | "sub" | "pens" | "penalty_miss";
+  type?: "goal" | "red" | "yellow" | "chance" | "sub" | "pens" | "penalty_miss" | "injury" | "tactic";
   minute: number;
   team: string;
   scorer: string;
   scorer_id: string;
   position: string;
   assist: string | null;
+  assist_id?: string;
   outcome?: "saved" | "missed" | "woodwork";
   second_yellow?: boolean;
   source?: "open" | "penalty" | "freekick";
   set_piece?: "freekick";
+  detail?: string;
 }
 
 export interface LiveSnapshot {
@@ -59,6 +61,10 @@ export interface LiveSnapshot {
   tempo: "slow" | "balanced" | "fast";
   passing: "short" | "mixed" | "direct";
   pressing: "low_block" | "mid" | "high";
+  attack_style: "balanced" | "target_man" | "false_nine";
+  time_wasting: boolean;
+  penalty_taker: string | null;
+  injured: string[];
   opp_mentality: string;
   opp_tempo: string;
   opp_passing: string;
@@ -246,6 +252,31 @@ export interface ManagedSquadPlayer {
   photo_url?: string;
   suspended: boolean;
   yellows: number;
+  injured?: boolean;
+  injured_rounds?: number;
+  sharpness?: number;
+  fatigue?: number;
+  morale?: number;
+  condition_pct?: number;
+}
+
+export interface ScorerRow {
+  player_id: string;
+  name: string;
+  team: string;
+  team_name: string;
+  position: string;
+  goals: number;
+  assists: number;
+}
+
+export interface DressingRoomEvent {
+  id: string;
+  title: string;
+  body: string;
+  player_id?: string | null;
+  player_name?: string | null;
+  options: { key: string; label: string; hint: string }[];
 }
 
 export interface ManagedMatch {
@@ -289,6 +320,10 @@ export interface ManagedState {
   avg_rating: number | null;
   form: string[];
   review: string | null;
+  top_scorers: ScorerRow[];
+  team_scorers: ScorerRow[];
+  pending_event: DressingRoomEvent | null;
+  news: string[];
 }
 
 export interface JourneyMatch {
@@ -305,4 +340,191 @@ export interface JourneyMatch {
   away_pens?: number;
   winner?: string;
   events?: MatchEvent[];
+}
+
+/* ------------------------------ multiplayer ------------------------------ */
+export interface MPMatch extends ManagedMatch {
+  home_manager?: string | null;
+  away_manager?: string | null;
+}
+
+export interface MPPlayer {
+  name: string;
+  team: string | null;
+  team_name: string | null;
+  host: boolean;
+  alive: boolean;
+  eliminated_round: string | null;
+  submitted: boolean;
+  pred_points: number;
+  is_you: boolean;
+}
+
+export interface MPYou {
+  name: string;
+  team: string | null;
+  team_name: string | null;
+  group: string | null;
+  host: boolean;
+  alive: boolean;
+  eliminated_round: string | null;
+  submitted: boolean;
+  needs_lineup: boolean;
+  squad: ManagedSquadPlayer[];
+  next_fixture: {
+    stage: string; opponent: string; date?: string; venue?: string;
+    home: boolean; opp_manager?: string | null;
+  } | null;
+  form: string[];
+  pred_points: number;
+  predictions: Record<string, string>;
+}
+
+export interface MPStanding {
+  name: string;
+  team: string;
+  team_name: string;
+  alive: boolean;
+  progress: string;
+  form: string[];
+  pred_points: number;
+}
+
+export interface MPChatMsg {
+  name: string;
+  team: string | null;
+  text: string;
+  ts: number;
+  round_no: number;
+  system: boolean;
+}
+
+export interface MPDraft {
+  active: boolean;
+  order: string[];
+  position: number;
+  on_clock: string | null;
+  your_turn: boolean;
+  taken: string[];
+}
+
+export interface MPLiveInfo {
+  key: string;
+  home: string;
+  away: string;
+  home_manager: string;
+  away_manager: string;
+  minute: number;
+  home_goals: number;
+  away_goals: number;
+  done: boolean;
+  your_side: "home" | "away" | null;
+  started: boolean;
+}
+
+export interface H2HSide {
+  code: string;
+  manager: string;
+  xi: string[];
+  bench: string[];
+  stamina: Record<string, number>;
+  subs_made: number;
+  subs_remaining: number;
+  subs: { minute: number; out_id: string; in_id: string; out: string; in: string }[];
+  mentality: string;
+  tempo: string;
+  passing: string;
+  pressing: string;
+  attack_style: string;
+  time_wasting: boolean;
+  penalty_taker: string | null;
+  injured: string[];
+  red: number | null;
+  avg_stamina: number;
+  ready: boolean;
+}
+
+export interface H2HSnapshot {
+  minute: number;
+  period: string;
+  home: string;
+  away: string;
+  home_goals: number;
+  away_goals: number;
+  events: MatchEvent[];
+  home_side: H2HSide;
+  away_side: H2HSide;
+  viewer: string | null;
+  break: "HT" | "ET" | null;
+  done: boolean;
+  penalties: boolean;
+  home_pens: number | null;
+  away_pens: number | null;
+  knockout: boolean;
+}
+
+export interface MPState {
+  code: string;
+  phase: "lobby" | "draft" | "group" | "knockout" | "done";
+  round_no: number;
+  matchday: number | null;
+  ko_round: string | null;
+  ko_label: string | null;
+  players: MPPlayer[];
+  waiting_on: string[];
+  you: MPYou;
+  group_table: GroupRow[];
+  last_round: MPMatch[];
+  h2h: MPMatch[];
+  standings: MPStanding[];
+  bracket: { round: string; home: string; away: string; winner: string | null }[];
+  champion: string | null;
+  champion_name: string | null;
+  champion_manager: string | null;
+  runner_up: string | null;
+  team_names: Record<string, string>;
+  done: boolean;
+  draft: MPDraft | null;
+  chat: MPChatMsg[];
+  deadline_at: number | null;
+  deadline_minutes: number;
+  top_scorers: ScorerRow[];
+  team_scorers: ScorerRow[];
+  predictable: { key: string; home: string; away: string; stage: string }[];
+  live_h2h: MPLiveInfo[];
+  awaiting_live: boolean;
+}
+
+export interface PLState {
+  code: string;
+  phase: "lobby" | "group" | "knockout" | "done";
+  round_no: number;
+  matchday: number | null;
+  ko_label: string | null;
+  members: { name: string; host: boolean; points: number; predicted: boolean; is_you: boolean }[];
+  you: {
+    name: string; host: boolean; points: number; exact: number;
+    predictions: Record<string, { result: string; margin?: number }>;
+    predicted: boolean;
+  };
+  round_matches: { key: string; home: string; away: string; stage: string; knockout: boolean; group?: string | null }[];
+  waiting_on: string[];
+  last_round: ManagedMatch[];
+  last_round_points: Record<string, number>;
+  leaderboard: { name: string; points: number; exact: number; rounds_played: number; host: boolean }[];
+  deadline_at: number | null;
+  champion: string | null;
+  champion_name: string | null;
+  team_names: Record<string, string>;
+  done: boolean;
+}
+
+export interface MPPreview {
+  code: string;
+  phase: string;
+  players: { name: string; team: string; team_name: string; host: boolean }[];
+  taken_teams: string[];
+  joinable: boolean;
+  draft?: boolean;
+  deadline_minutes?: number;
 }

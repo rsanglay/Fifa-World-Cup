@@ -5,7 +5,10 @@ import type {
   LiveSnapshot,
   ManagedState,
   MatchPrediction,
+  MPPreview,
+  MPState,
   OddsRow,
+  PLState,
   SimResult,
   Team,
   TeamDetail,
@@ -15,9 +18,16 @@ import type {
 // backend host (e.g. Render), set VITE_API_URL to its base URL in Vercel.
 const BASE = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "") + "/api";
 
+async function fail(res: Response, path: string): Promise<never> {
+  // Prefer the server's human-readable detail (FastAPI: {"detail": "..."}).
+  let detail = "";
+  try { detail = (await res.json())?.detail || ""; } catch { /* not JSON */ }
+  throw new Error(detail || `${res.status} ${path}`);
+}
+
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`);
-  if (!res.ok) throw new Error(`${res.status} ${path}`);
+  if (!res.ok) await fail(res, path);
   return res.json();
 }
 
@@ -27,7 +37,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`${res.status} ${path}`);
+  if (!res.ok) await fail(res, path);
   return res.json();
 }
 
@@ -67,10 +77,43 @@ export const api = {
     post<{ session_id: string; live: LiveSnapshot | null }>("/manage/live/start", { session_id, starting_xi, mentality }),
   manageLiveTick: (session_id: string, minutes = 1) =>
     post<{ session_id: string; live: LiveSnapshot; state?: ManagedState }>("/manage/live/tick", { session_id, minutes }),
-  manageLiveTactics: (session_id: string, t: { mentality?: string; tempo?: string; passing?: string; pressing?: string }) =>
+  manageLiveTactics: (session_id: string, t: { mentality?: string; tempo?: string; passing?: string; pressing?: string; attack_style?: string; time_wasting?: boolean; penalty_taker?: string }) =>
     post<{ session_id: string; live: LiveSnapshot }>("/manage/live/tactics", { session_id, ...t }),
+  manageEvent: (session_id: string, choice: string) =>
+    post<{ session_id: string; state: ManagedState; outcome: string }>("/manage/event", { session_id, choice }),
   manageLiveSub: (session_id: string, out_id: string, in_id: string) =>
     post<{ session_id: string; live: LiveSnapshot; message: string }>("/manage/live/sub", { session_id, out_id, in_id }),
+  // Multiplayer rooms.
+  mpCreate: (name: string, team: string | null, opts?: { draft?: boolean; deadline_minutes?: number; live_h2h?: boolean }) =>
+    post<{ code: string; token: string; state: MPState }>("/mp/create", { name, team, ...opts }),
+  mpJoin: (code: string, name: string, team: string | null) =>
+    post<{ code: string; token: string; state: MPState }>("/mp/join", { code, name, team }),
+  mpDraftPick: (code: string, token: string, team: string) =>
+    post<{ code: string; state: MPState }>("/mp/draft-pick", { code, token, team }),
+  mpPredict: (code: string, token: string, picks: Record<string, string>) =>
+    post<{ code: string; state: MPState }>("/mp/predict", { code, token, picks }),
+  mpChat: (code: string, token: string, text: string) =>
+    post<{ code: string; state: MPState }>("/mp/chat", { code, token, text }),
+  // Prediction leagues.
+  plCreate: (name: string, deadline_minutes = 0) =>
+    post<{ code: string; token: string; state: PLState }>("/pl/create", { name, deadline_minutes }),
+  plJoin: (code: string, name: string) =>
+    post<{ code: string; token: string; state: PLState }>("/pl/join", { code, name }),
+  plStart: (code: string, token: string) =>
+    post<{ code: string; state: PLState }>("/pl/start", { code, token }),
+  plPredict: (code: string, token: string, picks: Record<string, { result: string; margin?: number }>) =>
+    post<{ code: string; state: PLState }>("/pl/predict", { code, token, picks }),
+  plState: (code: string, token: string) =>
+    get<{ code: string; state: PLState }>(`/pl/state/${code}?token=${encodeURIComponent(token)}`),
+  mpSwitchTeam: (code: string, token: string, team: string) =>
+    post<{ code: string; state: MPState }>("/mp/switch-team", { code, token, team }),
+  mpStart: (code: string, token: string) =>
+    post<{ code: string; state: MPState }>("/mp/start", { code, token }),
+  mpSubmit: (code: string, token: string, starting_xi: string[], mentality: string) =>
+    post<{ code: string; state: MPState }>("/mp/submit", { code, token, starting_xi, mentality }),
+  mpState: (code: string, token: string) =>
+    get<{ code: string; state: MPState }>(`/mp/state/${code}?token=${encodeURIComponent(token)}`),
+  mpPreview: (code: string) => get<MPPreview>(`/mp/preview/${code}`),
   modelDiagnostics: () => get<any>("/model/diagnostics"),
   realityOdds: (results: Record<string, [number, number]>, simulations = 2500) =>
     post<{ simulations: number; fixed_count: number; teams: OddsRow[]; standings: Record<string, any[]> }>(
@@ -78,6 +121,14 @@ export const api = {
       { results, simulations }
     ),
 };
+
+/** WebSocket URL for a live H2H grudge match feed. */
+export function mpLiveWsUrl(code: string, matchKey: string, token: string): string {
+  const base = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+  const origin = base || window.location.origin;
+  const ws = origin.replace(/^http/, "ws");
+  return `${ws}/api/mp/live/${code}/${matchKey}?token=${encodeURIComponent(token)}`;
+}
 
 // FIFA 3-letter code -> ISO-3166 alpha-2 (for flag emoji).
 const ISO2: Record<string, string> = {

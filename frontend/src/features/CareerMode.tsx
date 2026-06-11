@@ -5,7 +5,11 @@ import LineupPicker from "../components/LineupPicker";
 import LiveMatchManager from "../components/LiveMatchManager";
 import PitchLineup from "../components/PitchLineup";
 import Confetti from "../components/Confetti";
+import EventCard from "../components/EventCard";
 import ShareButton from "../components/ShareButton";
+import TopScorers from "../components/TopScorers";
+import { downloadShareCard } from "../lib/shareCard";
+import { profileStore } from "../lib/profileStore";
 import { sound } from "../lib/sound";
 import { careerStore } from "../lib/careerStore";
 import type { LiveSnapshot, ManagedMatch, ManagedSquadPlayer, ManagedState, Player } from "../types";
@@ -23,7 +27,7 @@ const MENTALITIES = [
 function pickXI(squad: ManagedSquadPlayer[], formation: string): string[] {
   const [d, m, f] = FORMATIONS[formation];
   const need: Record<string, number> = { GK: 1, DEF: d, MID: m, FWD: f };
-  const avail = squad.filter((p) => !p.suspended);
+  const avail = squad.filter((p) => !p.suspended && !p.injured);
   const out: string[] = [];
   (["GK", "DEF", "MID", "FWD"] as const).forEach((pos) => {
     out.push(...avail.filter((p) => p.position === pos).sort((a, b) => b.rating - a.rating).slice(0, need[pos]).map((p) => p.id));
@@ -69,10 +73,11 @@ export default function CareerMode({ team, onExit, resumeSession }: { team: stri
         when: state.team_name,
       });
       careerStore.clearActive();
+      profileStore.recordCareer(state, team);
     }
   }, [state?.done]); // eslint-disable-line
 
-  const suspended = useMemo(() => new Set((state?.squad || []).filter((p) => p.suspended).map((p) => p.id)), [state]);
+  const suspended = useMemo(() => new Set((state?.squad || []).filter((p) => p.suspended || p.injured).map((p) => p.id)), [state]);
   useEffect(() => { if (xi.some((id) => suspended.has(id))) setXi((c) => c.filter((id) => !suspended.has(id))); }, [suspended]); // eslint-disable-line
 
   // Fetch pre-match preview when XI / mentality change in select phase.
@@ -127,7 +132,25 @@ export default function CareerMode({ team, onExit, resumeSession }: { team: stri
 
       {ui === "select" && !state.done && (
         <>
+          {state.pending_event && (
+            <EventCard event={state.pending_event}
+              onChoose={async (choice) => {
+                const r = await api.manageEvent(sid, choice);
+                setState(r.state);
+                return r.outcome;
+              }} />
+          )}
+          {state.news && state.news.length > 0 && (
+            <div className="card p-3 text-xs text-white/60">
+              {state.news.slice(-3).map((n, i) => <div key={i} className="py-0.5">{n}</div>)}
+            </div>
+          )}
+          <SquadConditionPanel squad={state.squad} xi={xi} />
           <GroupMini state={state} names={names} team={team} />
+          <div className="grid gap-4 md:grid-cols-2">
+            <TopScorers rows={state.top_scorers || []} highlightTeam={team} />
+            <TopScorers rows={state.team_scorers || []} highlightTeam={team} title="YOUR SCORERS" />
+          </div>
           {state.journey.length > 0 && <Journey matches={state.journey} names={names} team={team} title="YOUR RUN" />}
         </>
       )}
@@ -208,7 +231,12 @@ function SelectPhase({ state, xi, formation, mentality, preview, suspended, busy
           </div>
         </div>
         {suspended.size > 0 && (
-          <div className="mt-2 text-xs text-red-300">🚫 {state.squad.filter((p: any) => p.suspended).map((p: any) => p.name).join(", ")}</div>
+          <div className="mt-2 text-xs text-red-300">
+            {state.squad.filter((p: any) => p.suspended).length > 0 &&
+              <>🚫 {state.squad.filter((p: any) => p.suspended).map((p: any) => p.name).join(", ")} </>}
+            {state.squad.filter((p: any) => p.injured).length > 0 &&
+              <>🤕 {state.squad.filter((p: any) => p.injured).map((p: any) => `${p.name} (${p.injured_rounds})`).join(", ")}</>}
+          </div>
         )}
       </div>
       <div className="flex justify-end gap-1">
@@ -308,7 +336,16 @@ function DoneScreen({ state, team, onExit }: { state: ManagedState; team: string
             {state.achievements.map((a) => <span key={a} className="rounded-full bg-white/10 px-3 py-1 text-xs">🏅 {a}</span>)}
           </div>
         )}
-        <div className="mt-5">
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+          <button onClick={() => downloadShareCard({
+            kind: "career", title: state.won ? "WORLD CHAMPIONS" : verdict,
+            teamCode: team, teamName: state.team_name,
+            lines: [
+              `Avg rating ${state.avg_rating ?? "—"} · ${state.journey.length} matches`,
+              ...(state.achievements.slice(0, 3).map((a) => `🏅 ${a}`)),
+            ],
+            won: state.won,
+          })} className="btn-ghost text-sm">🖼 Save share card</button>
           <ShareButton info={{
             headline: `MANAGED ${state.team_name.toUpperCase()}`,
             championCode: won ? team : (state.champion || team), championName: won ? state.team_name : (state.champion_name || ""),
@@ -319,8 +356,57 @@ function DoneScreen({ state, team, onExit }: { state: ManagedState; team: string
         </div>
         <button onClick={onExit} className="btn-ghost mt-3 text-sm">← New career</button>
       </motion.div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <TopScorers rows={state.top_scorers || []} highlightTeam={team} />
+        <TopScorers rows={state.team_scorers || []} highlightTeam={team} title="YOUR SCORERS" />
+      </div>
       <Journey matches={state.journey} names={names} team={team} title="YOUR RUN" />
     </div>
+  );
+}
+
+/* Squad condition: who is sharp, who is cooked, who is sulking. */
+function SquadConditionPanel({ squad, xi }: { squad: ManagedSquadPlayer[]; xi: string[] }) {
+  const [open, setOpen] = useState(false);
+  const sel = new Set(xi);
+  const rows = [...squad].sort((a, b) => (b.condition_pct ?? 100) - (a.condition_pct ?? 100));
+  const flagged = squad.filter((p) => (p.fatigue ?? 0) >= 55 || (p.sharpness ?? 100) <= 55);
+  return (
+    <div className="card p-3">
+      <button onClick={() => setOpen((o) => !o)} className="flex w-full items-center justify-between">
+        <span className="font-display text-lg tracking-wide">💪 SQUAD CONDITION</span>
+        <span className="text-xs text-white/40">
+          {flagged.length > 0 ? `${flagged.length} player(s) need attention` : "all fresh"} {open ? "▲" : "▼"}
+        </span>
+      </button>
+      {open && (
+        <div className="mt-2 grid gap-1 sm:grid-cols-2">
+          {rows.map((p) => (
+            <div key={p.id} className={`flex items-center gap-2 rounded-lg px-2 py-1 text-xs ${sel.has(p.id) ? "bg-pitch/15" : "bg-ink/40"}`}>
+              <span className="w-7 rounded bg-white/10 text-center text-[9px]">{p.position}</span>
+              <span className="min-w-0 flex-1 truncate">{p.injured ? "🤕 " : ""}{p.name}</span>
+              <CondBar label="SHP" value={p.sharpness ?? 100} good={70} />
+              <CondBar label="FAT" value={100 - (p.fatigue ?? 0)} good={50} />
+              <CondBar label="MOR" value={p.morale ?? 70} good={55} />
+              <span className={`w-9 text-right font-bold tabular-nums ${(p.condition_pct ?? 100) >= 98 ? "text-emerald-300" : (p.condition_pct ?? 100) >= 92 ? "text-amber-300" : "text-red-300"}`}>
+                {p.condition_pct ?? 100}%
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+function CondBar({ label, value, good }: { label: string; value: number; good: number }) {
+  const col = value >= good + 20 ? "bg-emerald-400" : value >= good ? "bg-amber-400" : "bg-red-400";
+  return (
+    <span className="flex items-center gap-1" title={label}>
+      <span className="text-[8px] text-white/30">{label}</span>
+      <span className="h-1.5 w-8 overflow-hidden rounded-full bg-white/10">
+        <span className={`block h-full ${col}`} style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
+      </span>
+    </span>
   );
 }
 function roundName(r: string): string {

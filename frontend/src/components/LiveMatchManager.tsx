@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api, flag } from "../api/client";
-import Pitch2D from "./Pitch2D";
+import MatchView from "./MatchView";
 import { sound } from "../lib/sound";
 import type { LiveSnapshot, ManagedState, ManagedSquadPlayer, MatchEvent } from "../types";
 
@@ -24,6 +24,11 @@ const PRESSINGS = [
   { key: "low_block", label: "Low block" },
   { key: "mid", label: "Mid press" },
   { key: "high", label: "High press" },
+];
+const ATTACK_STYLES = [
+  { key: "balanced", label: "Balanced attack" },
+  { key: "target_man", label: "🎯 Target man" },
+  { key: "false_nine", label: "🎭 False nine" },
 ];
 // Famous tactical identities -> dial combos (FM-preset style).
 const PRESETS: { name: string; icon: string; t: Record<string, string> }[] = [
@@ -54,6 +59,7 @@ export default function LiveMatchManager({
   const [subOut, setSubOut] = useState<string | null>(null);
   const [subMsg, setSubMsg] = useState<string | null>(null);
   const [finalState, setFinalState] = useState<ManagedState | null>(null);
+  const [shownScore, setShownScore] = useState<{ h: number; a: number } | null>(null);
   const inFlight = useRef(false);
 
   const byId = useMemo(() => Object.fromEntries(squad.map((p) => [p.id, p])), [squad]);
@@ -66,34 +72,46 @@ export default function LiveMatchManager({
     };
   }, [live.xi, byId]);
 
-  // Game clock: tick the server one minute at a time.
+  // Game clock: tick the server one minute at a time. Self-scheduling chain
+  // (not setInterval): the next tick is timed from the previous response, so
+  // network latency never piles requests up or makes the cadence lurch.
   useEffect(() => {
     if (!playing || live.done || panel) return;
-    const t = window.setInterval(async () => {
+    let alive = true;
+    let timer = 0;
+    const tickOnce = async () => {
       if (inFlight.current) return;
       inFlight.current = true;
+      const started = performance.now();
       try {
         const r = await api.manageLiveTick(sid, 1);
         inFlight.current = false;
+        if (!alive) return;
         setLive(r.live);
-        r.live.new_events.forEach((e) => {
-          if (e.type === "goal") sound.goal();
-          else if (e.type === "red") sound.red();
+        r.live.new_events.forEach((e) => {     // goal horn fires when SHOWN
+          if (e.type === "red" || e.type === "injury") sound.red();
         });
+        if (r.live.new_events.some((e) => e.type === "injury")) {
+          setPanel("subs"); setPlaying(false);   // forced decision: sub or gamble
+        }
         if (r.live.break || r.live.done) setPlaying(false);
         if (r.state) setFinalState(r.state);
       } catch {
         inFlight.current = false;
       }
-    }, TICK_MS / speed);
-    return () => window.clearInterval(t);
+      if (!alive) return;
+      const elapsed = performance.now() - started;
+      timer = window.setTimeout(tickOnce, Math.max(60, TICK_MS / speed - elapsed));
+    };
+    timer = window.setTimeout(tickOnce, TICK_MS / speed);
+    return () => { alive = false; window.clearTimeout(timer); };
   }, [playing, speed, live.done, panel, sid]);
 
   const lastEvent: MatchEvent | null = live.events.length
     ? tagHome(live.events[live.events.length - 1], live.home) : null;
 
-  const setTactics = async (t: Record<string, string>) => {
-    const r = await api.manageLiveTactics(sid, t);
+  const setTactics = async (t: Record<string, string | boolean>) => {
+    const r = await api.manageLiveTactics(sid, t as any);
     setLive(r.live);
   };
   const setMentality = (m: string) => setTactics({ mentality: m });
@@ -123,7 +141,9 @@ export default function LiveMatchManager({
       <div className="card flex flex-wrap items-center gap-3 p-3">
         <div className="flex items-center gap-2 font-display text-2xl">
           <span className="text-3xl">{flag(live.home)}</span>
-          <span className="tabular-nums">{live.home_goals}:{live.away_goals}</span>
+          <span className="tabular-nums">
+            {shownScore ? `${shownScore.h}:${shownScore.a}` : `${live.home_goals}:${live.away_goals}`}
+          </span>
           <span className="text-3xl">{flag(live.away)}</span>
         </div>
         <div className="flex items-center gap-1 text-sm">
@@ -150,11 +170,13 @@ export default function LiveMatchManager({
         </div>
       </div>
 
-      {/* 2D live pitch */}
-      <Pitch2D
+      {/* live pitch: 2D dots or the 3D stadium */}
+      <MatchView
         ourShape={shape} oppShape={{ d: 4, m: 3, f: 3 }} ourSide={live.our_side}
         running={playing && !live.done} lastEvent={lastEvent}
+        events={live.events} homeTeam={live.home}
         homeGoals={live.home_goals} awayGoals={live.away_goals} possession={possession}
+        onShownScore={(h, a) => setShownScore({ h, a })}
       />
 
       {/* break / FT banners */}
@@ -201,6 +223,25 @@ export default function LiveMatchManager({
           <DialRow label="Tempo" options={TEMPOS} value={live.tempo} onPick={(v) => setTactics({ tempo: v })} />
           <DialRow label="Passing" options={PASSINGS} value={live.passing} onPick={(v) => setTactics({ passing: v })} />
           <DialRow label="Pressing" options={PRESSINGS} value={live.pressing} onPick={(v) => setTactics({ pressing: v })} />
+          <DialRow label="Attack" options={ATTACK_STYLES} value={live.attack_style} onPick={(v) => setTactics({ attack_style: v })} />
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="w-20 text-xs uppercase tracking-wide text-white/40">Game mgmt</span>
+            <button onClick={() => setTactics({ time_wasting: !live.time_wasting })}
+              className={`rounded-lg px-3 py-1 text-sm font-semibold ${live.time_wasting ? "bg-gold text-ink" : "bg-white/5 text-white/70 hover:bg-white/10"}`}>
+              ⏳ Time-wasting {live.time_wasting ? "ON" : "off"}
+            </button>
+            <span className="text-[10px] text-white/40">kills the game at both ends — protect a lead</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="w-20 text-xs uppercase tracking-wide text-white/40">Pen taker</span>
+            <select value={live.penalty_taker || ""} onChange={(e) => setTactics({ penalty_taker: e.target.value })}
+              className="rounded-lg bg-ink/60 px-2 py-1 text-sm outline-none ring-1 ring-white/10">
+              <option value="">Best on pitch</option>
+              {live.xi.map((id) => byId[id] && (
+                <option key={id} value={id}>{byId[id].name} ({byId[id].rating})</option>
+              ))}
+            </select>
+          </div>
           {live.pressing === "high" && live.avg_stamina < 70 && (
             <div className="rounded bg-amber-500/15 px-2 py-1 text-xs text-amber-300">
               ⚠️ Your legs are going (avg stamina {live.avg_stamina}%) — a high press on tired legs
@@ -230,6 +271,7 @@ export default function LiveMatchManager({
                 {live.xi.map((id) => (
                   <PlayerRow key={id} p={byId[id]} stamina={live.stamina[id]}
                     active={subOut === id} dim={!!subOut && subOut !== id}
+                    hurt={live.injured.includes(id)}
                     onClick={() => setSubOut(subOut === id ? null : id)} />
                 ))}
               </div>
@@ -287,6 +329,8 @@ function icon(e: MatchEvent): string {
     case "red": return "🟥";
     case "sub": return "🔁";
     case "pens": return "🎯";
+    case "injury": return "🤕";
+    case "tactic": return "📋";
     default: return "•";
   }
 }
@@ -296,7 +340,7 @@ function text(e: MatchEvent, names: Record<string, string>): string {
     case "goal":
       return e.source === "penalty" ? `PENALTY GOAL! ${e.scorer} converts from the spot (${t})`
         : e.source === "freekick" ? `FREE KICK GOAL! ${e.scorer} curls it in (${t})`
-        : `GOAL! ${e.scorer} (${t})`;
+        : `GOAL! ${e.scorer} (${t})${e.assist ? ` — assist ${e.assist}` : ""}`;
     case "chance": {
       const fk = e.set_piece === "freekick" ? "free kick " : "";
       return e.outcome === "saved" ? `${e.scorer}'s ${fk}effort is saved!`
@@ -310,6 +354,8 @@ function text(e: MatchEvent, names: Record<string, string>): string {
     case "red": return e.second_yellow ? `${e.scorer} — second yellow, off!` : `RED CARD — ${e.scorer} (${t})`;
     case "sub": return `Substitution: ${e.scorer} on for ${e.assist}.`;
     case "pens": return `Penalty shoot-out: ${e.scorer}.`;
+    case "injury": return `${e.scorer} ${e.detail || "is down injured"}!`;
+    case "tactic": return `${t} ${e.detail || "change shape"}.`;
     default: return e.scorer;
   }
 }
@@ -361,9 +407,9 @@ function Banner({ title, sub, children }: { title: string; sub?: string; childre
   );
 }
 
-function PlayerRow({ p, stamina, active, dim, fresh, onClick }: {
+function PlayerRow({ p, stamina, active, dim, fresh, hurt, onClick }: {
   p?: ManagedSquadPlayer; stamina?: number; active?: boolean; dim?: boolean; fresh?: boolean;
-  onClick?: () => void;
+  hurt?: boolean; onClick?: () => void;
 }) {
   if (!p) return null;
   const st = stamina ?? 100;
@@ -373,7 +419,7 @@ function PlayerRow({ p, stamina, active, dim, fresh, onClick }: {
       className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition
         ${active ? "bg-gold/20 ring-1 ring-gold" : dim ? "opacity-40" : "bg-ink/50 hover:bg-white/10"}`}>
       <span className="w-7 rounded bg-white/10 text-center text-[10px]">{p.position}</span>
-      <span className="min-w-0 flex-1 truncate">{p.name}</span>
+      <span className="min-w-0 flex-1 truncate">{hurt && "🤕 "}{p.name}</span>
       <span className="text-xs font-bold text-gold">{p.rating}</span>
       <span className="h-1.5 w-12 overflow-hidden rounded-full bg-white/10">
         <span className={`block h-full ${col}`} style={{ width: `${fresh ? 100 : st}%` }} />
