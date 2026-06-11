@@ -49,6 +49,28 @@ class ManageSecondHalfRequest(BaseModel):
     mentality: str = "balanced"
 
 
+class LiveStartRequest(BaseModel):
+    session_id: str
+    starting_xi: List[str] = Field(default_factory=list)
+    mentality: str = "balanced"
+
+
+class LiveTickRequest(BaseModel):
+    session_id: str
+    minutes: int = Field(1, ge=1, le=5)
+
+
+class LiveTacticsRequest(BaseModel):
+    session_id: str
+    mentality: str = "balanced"
+
+
+class LiveSubRequest(BaseModel):
+    session_id: str
+    out_id: str
+    in_id: str
+
+
 class RealityRequest(BaseModel):
     # match_no (as string key) -> [home_goals, away_goals]
     results: dict = Field(default_factory=dict)

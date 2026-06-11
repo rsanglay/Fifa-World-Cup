@@ -65,3 +65,39 @@ def second_half(session_id: str, mentality: str = "balanced") -> dict:
 def get(session_id: str) -> dict:
     mt = _get(session_id)
     return {"session_id": session_id, "state": mt.state()}
+
+
+# ------------------------- live (interactive) match ------------------------ #
+def live_start(session_id: str, starting_xi: List[str], mentality: str = "balanced") -> dict:
+    mt = _get(session_id)
+    if mt.phase != "done" and mt.live is None and mt.pending is None:
+        mt.start_live(starting_xi, mentality)
+    live = mt.live.snapshot() if mt.live else None
+    return {"session_id": session_id, "live": live}
+
+
+def live_tick(session_id: str, minutes: int = 1) -> dict:
+    mt = _get(session_id)
+    snap = mt.tick_live(minutes)
+    if snap is None:
+        raise KeyError("No live match in progress.")
+    out = {"session_id": session_id, "live": snap}
+    if snap["done"]:
+        out["state"] = mt.state()
+    return out
+
+
+def live_tactics(session_id: str, mentality: str = "balanced") -> dict:
+    mt = _get(session_id)
+    snap = mt.live_tactics(mentality)
+    if snap is None:
+        raise KeyError("No live match in progress.")
+    return {"session_id": session_id, "live": snap}
+
+
+def live_sub(session_id: str, out_id: str, in_id: str) -> dict:
+    mt = _get(session_id)
+    snap, msg = mt.live_substitute(out_id, in_id)
+    if snap is None:
+        raise KeyError(msg)
+    return {"session_id": session_id, "live": snap, "message": msg}

@@ -14,6 +14,10 @@ from app.core.data import (
 from app.engine.squad import FORMATIONS, best_xi
 from app.schemas import (
     LineupRequest,
+    LiveStartRequest,
+    LiveSubRequest,
+    LiveTacticsRequest,
+    LiveTickRequest,
     ManagePlayRequest,
     ManageSecondHalfRequest,
     ManageSimRequest,
@@ -164,6 +168,43 @@ def manage_play(req: ManagePlayRequest):
 def manage_second_half(req: ManageSecondHalfRequest):
     try:
         return manage_session.second_half(req.session_id, req.mentality)
+    except KeyError as e:
+        raise HTTPException(404, str(e))
+
+
+# --------------------------- live in-game management ---------------------- #
+@router.post("/manage/live/start")
+def manage_live_start(req: LiveStartRequest):
+    """Kick off an interactive match: tick it forward, pause, manage, substitute."""
+    try:
+        return manage_session.live_start(req.session_id, req.starting_xi, req.mentality)
+    except KeyError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.post("/manage/live/tick")
+def manage_live_tick(req: LiveTickRequest):
+    """Advance the live match by 1-5 game minutes (stops at HT / ET / FT)."""
+    try:
+        return manage_session.live_tick(req.session_id, req.minutes)
+    except KeyError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.post("/manage/live/tactics")
+def manage_live_tactics(req: LiveTacticsRequest):
+    """Change mentality mid-match — takes effect from the next minute."""
+    try:
+        return manage_session.live_tactics(req.session_id, req.mentality)
+    except KeyError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.post("/manage/live/sub")
+def manage_live_sub(req: LiveSubRequest):
+    """Make a substitution (max 5 per match, shape must stay legal)."""
+    try:
+        return manage_session.live_sub(req.session_id, req.out_id, req.in_id)
     except KeyError as e:
         raise HTTPException(404, str(e))
 

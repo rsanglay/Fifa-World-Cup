@@ -5,10 +5,16 @@ out in two halves (with a half-time tactical switch), and everything else
 auto-sims. Carries fatigue, momentum and discipline (yellows->ban, reds) between
 rounds. Tracks a nation expectation, per-match ratings, achievements and form.
 
-Two-phase managed match:
+Two-phase managed match (legacy):
   play_first_half(xi, mentality)  -> sims 0-45', stores HT state
   play_second_half(mentality)     -> sims 45-90' (+ET/pens), finalises, auto-sims
                                      the rest of the round, advances.
+
+Live managed match (interactive, Football-Manager style):
+  start_live(xi, mentality)   -> creates a LiveMatch (minute 0)
+  tick_live(minutes)          -> advances the sim minute by minute; the client
+                                 can pause, change mentality and substitute at
+                                 ANY minute. Finalises automatically at FT.
 """
 from __future__ import annotations
 
@@ -17,6 +23,7 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
+from app.engine.live import LiveMatch
 from app.engine.match import (
     RED_CARD_PROB,
     TeamStrength,
@@ -90,6 +97,8 @@ class ManagedTournament:
         self.last_managed_match: Optional[dict] = None   # full events for live replay
 
         self.pending: Optional[dict] = None
+        self.live: Optional[LiveMatch] = None
+        self._live_mm: Optional[dict] = None
         self.ratings: List[float] = []
         self.achievements: List[str] = []
         self.form: List[str] = []   # 'W'/'D'/'L'
@@ -117,6 +126,14 @@ class ManagedTournament:
             if m.get("match_no") == match_no:
                 return m
         return {}
+
+    def _strengths(self, home, away, date, country):
+        sh = TeamStrength(home, self.base_elo[home])
+        sa = TeamStrength(away, self.base_elo[away])
+        h_adv = (_home_adv(home, away, country)
+                 + _net_fatigue_adv(home, away, date, self.last_played)
+                 + _momentum_adv(home, away, self.momentum))
+        return sh, sa, h_adv
 
     def _base_lambdas(self, home, away, date, country, xi_ids):
         sh = TeamStrength(home, self.base_elo[home])
@@ -318,6 +335,91 @@ class ManagedTournament:
         # Auto-sim the rest of this round, then advance.
         self._finish_round(p["mm"], winner)
         self.pending = None
+
+    # ------------------------------------------------------ live (interactive)
+    def start_live(self, xi_ids, mentality="balanced"):
+        """Begin an interactive minute-by-minute match (in-game management)."""
+        mm = self._current_managed_match()
+        if mm is None or self.live is not None or self.pending is not None:
+            return
+        home, away, date, country = mm["home"], mm["away"], mm["date"], mm["country"]
+        sh, sa, h_adv = self._strengths(home, away, date, country)
+        opp = away if home == self.team else home
+        self.live = LiveMatch(
+            rng=self.rng, team=self.team, home=home, away=away,
+            knockout=mm["knockout"], sh=sh, sa=sa, h_adv=h_adv,
+            squad=[p for p in self.squad if self.suspended.get(p.id, 0) <= 0],
+            opp_players=best_xi(self.all_squads.get(opp, [])),
+            xi_ids=xi_ids, mentality=mentality, date=date,
+        )
+        self._live_mm = mm
+
+    def tick_live(self, minutes=1):
+        if self.live is None:
+            return None
+        new = self.live.tick(minutes)
+        snap = self.live.snapshot(new)
+        if self.live.done:
+            self._finalize_live()
+        return snap
+
+    def live_tactics(self, mentality):
+        if self.live is None:
+            return None
+        self.live.set_mentality(mentality)
+        return self.live.snapshot()
+
+    def live_substitute(self, out_id, in_id):
+        if self.live is None:
+            return None, "No live match in progress."
+        ok, msg = self.live.substitute(out_id, in_id)
+        return self.live.snapshot(), (msg if not ok else "ok")
+
+    def _finalize_live(self):
+        lv, mm = self.live, self._live_mm
+        record_events = [e for e in lv.events if e.get("type") in ("goal", "red")]
+        md = {"round": "groups" if not mm["knockout"] else KO_ROUNDS[self.ko_round_idx],
+              "home": lv.home, "away": lv.away, "home_goals": lv.hg,
+              "away_goals": lv.ag, "penalties": lv.penalties,
+              "home_pens": lv.home_pens, "away_pens": lv.away_pens,
+              "winner": lv.winner, "date": lv.date, "events": record_events}
+
+        if not mm["knockout"]:
+            self.group_records[lv.home].apply(lv.away, lv.hg, lv.ag)
+            self.group_records[lv.away].apply(lv.home, lv.ag, lv.hg)
+            _apply_result_momentum(self.momentum, lv.home, lv.away, lv.hg, lv.ag)
+        else:
+            update_momentum(self.momentum, lv.winner, MOMENTUM_WIN)
+            update_momentum(self.momentum, lv.away if lv.winner == lv.home else lv.home,
+                            -MOMENTUM_WIN)
+        if lv.date:
+            self.last_played[lv.home] = lv.date
+            self.last_played[lv.away] = lv.date
+
+        self.match_log.append(md)
+        self.journey.append(md)
+        self.last_managed_match = md
+        self.last_round_results = [md]
+        self._record_discipline_live(lv.yellow_ids, lv.red_ids)
+        self._rate_and_track(md)
+        self._finish_round(mm, lv.winner)
+        self.live = None
+        self._live_mm = None
+
+    def _record_discipline_live(self, yellow_ids, red_ids):
+        """Apply the cards actually shown in the live match (no random re-draw)."""
+        for pid in list(self.suspended):
+            self.suspended[pid] -= 1
+            if self.suspended[pid] <= 0:
+                del self.suspended[pid]
+        for pid in yellow_ids:
+            self.yellows[pid] = self.yellows.get(pid, 0) + 1
+            if self.yellows[pid] >= YELLOWS_FOR_BAN:
+                self.suspended[pid] = 1
+                self.yellows[pid] = 0
+        for pid in red_ids:
+            self.suspended[pid] = 1
+            self.yellows[pid] = 0
 
     def _finish_round(self, mm, managed_winner):
         if mm["kind"] == "group":
@@ -523,6 +625,7 @@ class ManagedTournament:
             "journey": self.journey, "squad": self._squad_payload(), "team_names": names,
             "done": self.phase == "done", "won": self.champion == self.team,
             "awaiting_second_half": self.pending is not None, "half_time": ht,
+            "live": self.live.snapshot() if self.live else None,
             "expectation": self.expectation, "achievements": self.achievements,
             "ratings": self.ratings, "avg_rating": round(sum(self.ratings) / len(self.ratings), 1) if self.ratings else None,
             "form": self.form[-5:], "review": getattr(self, "review", None),
