@@ -74,7 +74,17 @@ export const api = {
   manageGet: (session_id: string) =>
     get<{ session_id: string; state: ManagedState }>(`/manage/session/${session_id}`),
   manageLiveStart: (session_id: string, starting_xi: string[], mentality: string) =>
-    post<{ session_id: string; live: LiveSnapshot | null }>("/manage/live/start", { session_id, starting_xi, mentality }),
+    post<{
+      session_id: string | null;          // WebSocket MATCH session id
+      manage_session_id: string;          // outer career session id
+      live: LiveSnapshot | null;
+      ws_path?: string;
+    }>("/manage/live/start", { session_id, starting_xi, mentality }),
+  teamSquad: (code: string, sessionId?: string) =>
+    get<{ team: string; squad: (import("../types").Player & {
+      form: number; suspended: boolean; injured: boolean; yellows: number;
+      injured_rounds: number;
+    })[] }>(`/teams/${code}/squad${sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : ""}`),
   manageLiveTick: (session_id: string, minutes = 1) =>
     post<{ session_id: string; live: LiveSnapshot; state?: ManagedState }>("/manage/live/tick", { session_id, minutes }),
   manageLiveTactics: (session_id: string, t: { mentality?: string; tempo?: string; passing?: string; pressing?: string; attack_style?: string; time_wasting?: boolean; penalty_taker?: string }) =>
@@ -121,6 +131,16 @@ export const api = {
       { results, simulations }
     ),
 };
+
+/** WebSocket URL for the Manage-a-Nation live match stream.
+ * Dev: proxied under /api/ws/… · Prod (separate backend host): /ws/… */
+export function manageLiveWsUrl(matchSessionId: string): string {
+  const base = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+  const origin = base || window.location.origin;
+  const ws = origin.replace(/^http/, "ws");
+  const prefix = base ? "" : "/api";   // same-origin dev goes through the proxy
+  return `${ws}${prefix}/ws/manage/live/${encodeURIComponent(matchSessionId)}`;
+}
 
 /** WebSocket URL for a live H2H grudge match feed. */
 export function mpLiveWsUrl(code: string, matchKey: string, token: string): string {

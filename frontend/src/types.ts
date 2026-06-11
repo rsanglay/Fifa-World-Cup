@@ -41,7 +41,87 @@ export interface MatchEvent {
   detail?: string;
 }
 
+/* ---------------------- live WebSocket match stream ---------------------- */
+export type ChainEventType =
+  | "PASS" | "DRIBBLE" | "PRESS" | "SHOT" | "SAVE" | "CORNER" | "FOUL"
+  | "GOAL" | "YELLOW" | "RED" | "SUB" | "INJURY" | "PENALTY"
+  | "OPP_TACTICAL_CHANGE" | "WHISTLE";
+
+export interface ChainEvent {
+  type: ChainEventType | string;
+  minute: number;
+  team: string;
+  side?: "home" | "away";
+  player_id?: string;
+  player?: string;
+  x?: number;
+  y?: number;
+  outcome?: string;
+  detail?: string;
+  new_mentality?: string;
+  reason?: string;
+  headline?: boolean;
+  // headline (legacy) event fields piggyback on the same array
+  scorer?: string;
+  scorer_id?: string;
+  assist?: string | null;
+  source?: string;
+  severity?: string;
+}
+
+export interface PlayerPos {
+  player_id: string;
+  name: string;
+  number: number;
+  role: string;
+  team: "home" | "away";
+  x: number;
+  y: number;
+}
+
+export interface LiveStats {
+  possession: { home: number; away: number };
+  shots: { home: number; away: number };
+  on_target: { home: number; away: number };
+  corners: { home: number; away: number };
+  fouls: { home: number; away: number };
+}
+
+export interface PlayerRating {
+  player_id: string;
+  name: string;
+  position: string;
+  role: string;
+  number: number;
+  minutes: number;
+  goals: number;
+  assists: number;
+  rating: number;
+  motm?: boolean;
+}
+
+export interface LiveFrame {
+  minute: number;
+  score: { home: number; away: number };
+  events: ChainEvent[];
+  player_positions: PlayerPos[];
+  ball_xy: [number, number];
+  possession_team: "home" | "away";
+  match_phase: string;
+  stats: LiveStats;
+  snapshot: LiveSnapshot;
+  state?: ManagedState;
+  ack?: string;
+  type?: string;       // "error" for refused commands
+  message?: string;
+}
+
 export interface LiveSnapshot {
+  form?: Record<string, number>;
+  stats?: LiveStats;
+  minutes_played?: Record<string, number>;
+  injury_types?: Record<string, string>;
+  player_ratings?: PlayerRating[];
   minute: number;
   period: "1H" | "HT" | "2H" | "ET-BREAK" | "ET" | "FT";
   home: string;
@@ -258,6 +338,7 @@ export interface ManagedSquadPlayer {
   fatigue?: number;
   morale?: number;
   condition_pct?: number;
+  form?: number;        // 0..1 match form (server-modelled, not official)
 }
 
 export interface ScorerRow {
@@ -303,7 +384,10 @@ export interface ManagedState {
   champion: string | null;
   champion_name: string | null;
   group_table: GroupRow[];
-  next_fixture: { stage: string; opponent: string; date?: string; venue?: string; city?: string } | null;
+  next_fixture: {
+    stage: string; opponent: string; date?: string; venue?: string; city?: string;
+    opponent_elo?: number; opponent_form?: string[]; home?: boolean;
+  } | null;
   last_round: ManagedMatch[];
   last_managed_match: ManagedMatch | null;
   journey: ManagedMatch[];
@@ -324,6 +408,9 @@ export interface ManagedState {
   team_scorers: ScorerRow[];
   pending_event: DressingRoomEvent | null;
   news: string[];
+  last_ratings?: PlayerRating[];
+  card_state?: Record<string, { yellows: number; suspended_next: boolean }>;
+  morale?: { avg_form: number; label: "Very Good" | "Good" | "Poor" | "Crisis" };
 }
 
 export interface JourneyMatch {

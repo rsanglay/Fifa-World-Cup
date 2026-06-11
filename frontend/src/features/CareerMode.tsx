@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { api, flag } from "../api/client";
-import LineupPicker from "../components/LineupPicker";
-import LiveMatchManager from "../components/LiveMatchManager";
-import PitchLineup from "../components/PitchLineup";
+import LineupBuilderDnD from "../components/LineupBuilderDnD";
+import LiveMatchWS from "../components/live/LiveMatchWS";
+import NextUp from "../components/NextUp";
+import RatingsPanel from "../components/RatingsPanel";
 import Confetti from "../components/Confetti";
 import EventCard from "../components/EventCard";
 import ShareButton from "../components/ShareButton";
@@ -12,7 +13,7 @@ import { downloadShareCard } from "../lib/shareCard";
 import { profileStore } from "../lib/profileStore";
 import { sound } from "../lib/sound";
 import { careerStore } from "../lib/careerStore";
-import type { LiveSnapshot, ManagedMatch, ManagedSquadPlayer, ManagedState, Player } from "../types";
+import type { ManagedMatch, ManagedSquadPlayer, ManagedState } from "../types";
 
 const FORMATIONS: Record<string, [number, number, number]> = {
   "4-3-3": [4, 3, 3], "4-4-2": [4, 4, 2], "4-2-3-1": [4, 5, 1],
@@ -35,17 +36,19 @@ function pickXI(squad: ManagedSquadPlayer[], formation: string): string[] {
   return out;
 }
 
-type UIPhase = "select" | "live" | "result";
+type UIPhase = "next" | "lineup" | "live" | "result";
 
 export default function CareerMode({ team, onExit, resumeSession }: { team: string; onExit: () => void; resumeSession?: string }) {
   const [sid, setSid] = useState("");
+  const [matchSid, setMatchSid] = useState<string | null>(null);
+  const [initialFrame, setInitialFrame] = useState<any>(null);
   const [state, setState] = useState<ManagedState | null>(null);
   const [xi, setXi] = useState<string[]>([]);
   const [formation, setFormation] = useState("4-3-3");
   const [mentality, setMentality] = useState("balanced");
-  const [liveInit, setLiveInit] = useState<LiveSnapshot | null>(null);
+  const [lastStamina, setLastStamina] = useState<Record<string, number> | undefined>();
   const [preview, setPreview] = useState<{ win: number; draw: number; lose: number; your_key: string; opp_key: string } | null>(null);
-  const [ui, setUi] = useState<UIPhase>("select");
+  const [ui, setUi] = useState<UIPhase>("next");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,7 +56,16 @@ export default function CareerMode({ team, onExit, resumeSession }: { team: stri
     const onReady = (r: { session_id: string; state: ManagedState }) => {
       setSid(r.session_id); setState(r.state); setXi(pickXI(r.state.squad, "4-3-3"));
       careerStore.setActive({ sessionId: r.session_id, team, teamName: r.state.team_name });
-      if (r.state.live && !r.state.live.done) { setLiveInit(r.state.live); setUi("live"); }
+      if (r.state.live && !r.state.live.done) {
+        // A live match is in progress: reopen the WebSocket match session.
+        api.manageLiveStart(r.session_id, [], "balanced").then((res) => {
+          if (res.session_id) {
+            setMatchSid(res.session_id);
+            setInitialFrame((res as any).frame || null);
+            setUi("live");
+          }
+        }).catch(() => undefined);
+      }
     };
     const p = resumeSession
       ? api.manageGet(resumeSession).catch(() => api.manageStart(team))
@@ -77,32 +89,45 @@ export default function CareerMode({ team, onExit, resumeSession }: { team: stri
     }
   }, [state?.done]); // eslint-disable-line
 
+  const [softError, setSoftError] = useState<string | null>(null);
   const suspended = useMemo(() => new Set((state?.squad || []).filter((p) => p.suspended || p.injured).map((p) => p.id)), [state]);
-  useEffect(() => { if (xi.some((id) => suspended.has(id))) setXi((c) => c.filter((id) => !suspended.has(id))); }, [suspended]); // eslint-disable-line
+  useEffect(() => { if (xi.some((id) => id && suspended.has(id))) setXi((c) => c.map((id) => (suspended.has(id) ? "" : id))); }, [suspended]); // eslint-disable-line
 
-  // Fetch pre-match preview when XI / mentality change in select phase.
+  // Fetch pre-match preview when XI / mentality change pre-match.
+  const xiClean = useMemo(() => xi.filter(Boolean), [xi]);
   useEffect(() => {
-    if (ui === "select" && sid && xi.length === 11) {
-      api.managePreview(sid, xi, mentality).then((r) => setPreview(r.preview)).catch(() => setPreview(null));
+    if ((ui === "lineup" || ui === "next") && sid && xiClean.length === 11) {
+      api.managePreview(sid, xiClean, mentality).then((r) => setPreview(r.preview)).catch(() => setPreview(null));
     }
-  }, [ui, sid, xi, mentality]); // eslint-disable-line
+  }, [ui, sid, xiClean, mentality]); // eslint-disable-line
 
-  if (error) return <div className="card p-6 text-center text-red-300">{error} <button onClick={onExit} className="btn-ghost ml-2">Back</button></div>;
+  if (error) return <div className="card p-6 text-center text-danger">{error} <button onClick={onExit} className="btn-ghost ml-2">Back</button></div>;
   if (!state) return <div className="skel h-64" />;
 
   const names = state.team_names;
   const kickOff = () => {
-    if (xi.length !== 11) return;
+    if (xiClean.length !== 11) { setUi("lineup"); return; }
     setBusy(true);
-    api.manageLiveStart(sid, xi, mentality)
+    setSoftError(null);
+    api.manageLiveStart(sid, xiClean, mentality)
       .then((r) => {
-        if (r.live) { setLiveInit(r.live); setUi("live"); }
+        if (r.session_id) {
+          setMatchSid(r.session_id);
+          setInitialFrame((r as any).frame || null);
+          setUi("live");
+        }
         setBusy(false);
       })
-      .catch((e) => { setError(String(e?.message || e)); setBusy(false); });
+      .catch((e) => {
+        // 422 = suspended/injured players named in the XI: back to the builder.
+        const d = e?.message || String(e);
+        setSoftError(typeof d === "string" ? d : "Ineligible players in the starting XI.");
+        setBusy(false);
+        setUi("lineup");
+      });
   };
   const nextMatch = () => {
-    setUi("select"); setPreview(null); setMentality("balanced");
+    setUi("next"); setPreview(null); setMentality("balanced");
     setXi(pickXI(state.squad, formation));
   };
 
@@ -112,25 +137,54 @@ export default function CareerMode({ team, onExit, resumeSession }: { team: stri
 
       {state.done ? (
         <DoneScreen state={state} team={team} onExit={onExit} />
-      ) : ui === "select" ? (
-        <SelectPhase
-          state={state} xi={xi} formation={formation} mentality={mentality} preview={preview}
-          suspended={suspended} busy={busy}
-          onToggle={(id: string) => setXi((c) => c.includes(id) ? c.filter((x) => x !== id) : [...c, id])}
-          onSetXi={setXi}
-          onFormation={(f: string) => { setFormation(f); setXi(pickXI(state.squad, f)); }}
-          onMentality={setMentality} onAuto={() => setXi(pickXI(state.squad, formation))} onKickOff={kickOff}
-        />
-      ) : ui === "live" && liveInit ? (
-        <LiveMatchManager
-          sid={sid} initial={liveInit} squad={state.squad} names={names} team={team}
-          onDone={(st) => { setState(st); setLiveInit(null); setUi("result"); }}
+      ) : ui === "next" ? (
+        <NextUp state={state} team={team}
+          onContinue={kickOff} onRotate={() => setUi("lineup")} />
+      ) : ui === "lineup" ? (
+        <>
+          <div className="card flex flex-wrap items-center gap-3 p-3">
+            <span className="text-sm text-txt-secondary">Mentality:</span>
+            {MENTALITIES.map((m) => (
+              <button key={m.key} onClick={() => setMentality(m.key)}
+                className={`rounded-full px-3 py-1 text-sm font-semibold ${mentality === m.key ? "bg-accent text-ink" : "bg-white/5 text-txt-secondary hover:bg-white/10"}`}>
+                {m.icon} {m.label}
+              </button>
+            ))}
+            <div className="ml-auto flex items-center gap-2">
+              {preview && (
+                <span className="hidden text-xs text-txt-secondary sm:inline">
+                  Win <b className="text-accent">{(preview.win * 100).toFixed(0)}%</b> · Draw {(preview.draw * 100).toFixed(0)}% · Lose <b className="text-danger">{(preview.lose * 100).toFixed(0)}%</b>
+                </span>
+              )}
+              <span className={`text-sm ${xiClean.length === 11 ? "text-accent" : "text-txt-secondary"}`}>{xiClean.length}/11</span>
+              <button onClick={() => setXi(pickXI(state.squad, formation))} className="btn-ghost text-sm">Auto</button>
+              <button onClick={kickOff} disabled={xiClean.length !== 11 || busy} className="btn-primary">
+                {busy ? "…" : "▶ Kick off"}
+              </button>
+            </div>
+          </div>
+          {softError && <div className="card p-3 text-sm text-danger">🚫 {softError}</div>}
+          <LineupBuilderDnD
+            squad={state.squad} selected={xi} formation={formation}
+            onChange={setXi}
+            onFormation={(f: string) => { setFormation(f); setXi(pickXI(state.squad, f)); }}
+            unavailable={suspended} lastStamina={lastStamina}
+          />
+        </>
+      ) : ui === "live" && matchSid ? (
+        <LiveMatchWS
+          matchSid={matchSid} initialFrame={initialFrame}
+          squad={state.squad} names={names} team={team}
+          onDone={(st, stamina) => {
+            setState(st); setMatchSid(null); setInitialFrame(null);
+            setLastStamina(stamina); setUi("result");
+          }}
         />
       ) : (
         <ResultPhase state={state} team={team} names={names} onNext={nextMatch} />
       )}
 
-      {ui === "select" && !state.done && (
+      {(ui === "next" || ui === "lineup") && !state.done && (
         <>
           {state.pending_event && (
             <EventCard event={state.pending_event}
@@ -185,73 +239,6 @@ function CareerHeader({ state, team, onExit }: { state: ManagedState; team: stri
   );
 }
 
-/* ------------------------------------------------------------- select phase */
-function SelectPhase({ state, xi, formation, mentality, preview, suspended, busy, onToggle, onSetXi, onFormation, onMentality, onAuto, onKickOff }: any) {
-  const names = state.team_names;
-  const nf = state.next_fixture;
-  const [view, setView] = useState<"pitch" | "list">("pitch");
-  return (
-    <>
-      <div className="card p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="text-xs uppercase tracking-wider text-gold">{nf?.stage}</div>
-            <div className="mt-1 flex items-center gap-2 text-lg font-semibold">
-              vs <span className="text-2xl">{flag(nf?.opponent || "")}</span> {names[nf?.opponent || ""]}
-            </div>
-          </div>
-          {preview && (
-            <div className="flex gap-2 text-center text-xs">
-              {[["Win", preview.win, "text-emerald-400"], ["Draw", preview.draw, "text-white/60"], ["Lose", preview.lose, "text-red-400"]].map(([l, v, c]) => (
-                <div key={l as string} className="rounded-lg bg-ink/60 px-3 py-1">
-                  <div className={`font-display text-lg ${c}`}>{((v as number) * 100).toFixed(0)}%</div>
-                  <div className="text-[9px] text-white/40">{l}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        {preview && (
-          <div className="mt-2 text-xs text-white/40">⭐ {preview.your_key} <span className="text-white/25">vs</span> {preview.opp_key}</div>
-        )}
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <span className="text-sm text-white/50">Mentality:</span>
-          {MENTALITIES.map((m) => (
-            <button key={m.key} onClick={() => onMentality(m.key)}
-              className={`rounded-lg px-3 py-1 text-sm font-semibold ${mentality === m.key ? "bg-gold text-ink" : "bg-white/5 text-white/70 hover:bg-white/10"}`}>
-              {m.icon} {m.label}
-            </button>
-          ))}
-          <div className="ml-auto flex items-center gap-2">
-            <span className={`text-sm ${xi.length === 11 ? "text-gold" : "text-white/40"}`}>{xi.length}/11</span>
-            <button onClick={onAuto} className="btn-ghost text-sm">Auto</button>
-            <button onClick={onKickOff} disabled={xi.length !== 11 || busy} className="btn-primary">
-              {busy ? "…" : "▶ Kick off"}
-            </button>
-          </div>
-        </div>
-        {suspended.size > 0 && (
-          <div className="mt-2 text-xs text-red-300">
-            {state.squad.filter((p: any) => p.suspended).length > 0 &&
-              <>🚫 {state.squad.filter((p: any) => p.suspended).map((p: any) => p.name).join(", ")} </>}
-            {state.squad.filter((p: any) => p.injured).length > 0 &&
-              <>🤕 {state.squad.filter((p: any) => p.injured).map((p: any) => `${p.name} (${p.injured_rounds})`).join(", ")}</>}
-          </div>
-        )}
-      </div>
-      <div className="flex justify-end gap-1">
-        <button onClick={() => setView("pitch")} className={`rounded-lg px-3 py-1 text-xs ${view === "pitch" ? "bg-gold text-ink" : "bg-white/5 text-white/70"}`}>⚽ Pitch</button>
-        <button onClick={() => setView("list")} className={`rounded-lg px-3 py-1 text-xs ${view === "list" ? "bg-gold text-ink" : "bg-white/5 text-white/70"}`}>☰ List</button>
-      </div>
-      {view === "pitch" ? (
-        <PitchLineup squad={state.squad as unknown as Player[]} selected={xi} formation={formation} onChange={onSetXi} onFormation={onFormation} unavailable={suspended} />
-      ) : (
-        <LineupPicker squad={state.squad as unknown as Player[]} selected={xi} formation={formation} onToggle={onToggle} onFormation={onFormation} unavailable={suspended} />
-      )}
-    </>
-  );
-}
-
 function ResultPhase({ state, team, names, onNext }: { state: ManagedState; team: string; names: Record<string, string>; onNext: () => void }) {
   const mm = state.last_managed_match!;
   const us = mm.home === team ? mm.home_goals : mm.away_goals;
@@ -270,6 +257,7 @@ function ResultPhase({ state, team, names, onNext }: { state: ManagedState; team
         {state.ratings.length > 0 && <div className="mt-1 text-sm text-white/50">Your match rating: <span className="text-gold">{state.ratings[state.ratings.length - 1]}</span></div>}
         <button onClick={onNext} className="btn-primary mt-4">{state.done ? "See outcome" : "Continue →"}</button>
       </motion.div>
+      {(state.last_ratings?.length ?? 0) > 0 && <RatingsPanel ratings={state.last_ratings!} />}
       {state.last_round.length > 1 && <Journey matches={state.last_round.filter((m) => !(m.home === team || m.away === team))} names={names} team={team} title="ELSEWHERE THIS ROUND" />}
     </div>
   );

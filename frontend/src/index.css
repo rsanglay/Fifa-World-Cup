@@ -2,33 +2,80 @@
 @tailwind components;
 @tailwind utilities;
 
+/* FM / EAFC hybrid design system
+   background #0d1117 · surface #161b22 · accent #00d4aa · danger #e63946
+   text #f0f6fc / #8b949e · Inter (UI) + Bebas Neue (scores, big numbers) */
 :root {
   font-family: "Inter", system-ui, sans-serif;
+  --bg: #0d1117;
+  --surface: #161b22;
+  --accent: #00d4aa;
+  --danger: #e63946;
+  --text-primary: #f0f6fc;
+  --text-secondary: #8b949e;
 }
 
 body {
   margin: 0;
-  background: radial-gradient(1200px 600px at 50% -10%, #1a2c4e 0%, #0b1220 55%);
-  color: #e8eefc;
+  background: radial-gradient(1200px 600px at 50% -10%, #14202b 0%, #0d1117 55%);
+  color: var(--text-primary);
   min-height: 100vh;
 }
 
+/* Dark glassmorphism card — every match panel sits on this. */
 .card {
-  @apply bg-ink-card/80 border border-white/5 rounded-2xl shadow-lg backdrop-blur;
+  background: rgba(22, 27, 34, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  @apply rounded-2xl shadow-lg;
 }
 
+/* Pill buttons, accent colour, hover scales to 1.03. */
 .btn {
-  @apply px-4 py-2 rounded-xl font-semibold transition active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed;
+  @apply px-4 py-2 rounded-full font-semibold transition active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed;
+}
+.btn:hover:not(:disabled) {
+  transform: scale(1.03);
 }
 .btn-primary {
-  @apply btn bg-gold text-ink hover:brightness-110;
+  @apply btn bg-accent text-ink;
+}
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(1.1);
 }
 .btn-ghost {
-  @apply btn bg-white/5 hover:bg-white/10 text-white;
+  @apply btn bg-white/5 hover:bg-white/10 text-txt-primary;
+}
+.btn-danger {
+  @apply btn bg-danger text-txt-primary;
+}
+
+/* FM-style scoreboard bar (team names in caps, Bebas Neue 48px score). */
+.scoreboard {
+  background: rgba(22, 27, 34, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  @apply flex items-center justify-center gap-4 rounded-2xl px-4 py-2;
+}
+.scoreboard .team {
+  @apply uppercase tracking-widest text-sm font-bold text-txt-primary;
+}
+.scoreboard .score {
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: 48px;
+  line-height: 1;
+  color: var(--accent);
+}
+
+/* Smooth on-pitch player movement (server frames every 500ms). */
+.player-dot {
+  transition: transform 450ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  will-change: transform;
 }
 
 .skel {
-  background: linear-gradient(90deg, #16213a 25%, #20304f 50%, #16213a 75%);
+  background: linear-gradient(90deg, #161b22 25%, #1f2733 50%, #161b22 75%);
   background-size: 1000px 100%;
   @apply animate-shimmer rounded;
 }
@@ -38,6 +85,6 @@ body {
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #243250;
+  background: #2a3340;
   border-radius: 10px;
 }

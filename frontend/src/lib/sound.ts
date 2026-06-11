@@ -1,6 +1,8 @@
 /* Tiny WebAudio sound synth — no asset files, no dependency. Stadium cues for
-   the simulator: a goal horn, a whistle, and a trophy fanfare. Muted state is
-   persisted; nothing plays until the user has interacted (browser autoplay). */
+   the match views: a goal horn, referee whistles, and a procedural crowd.
+   Muted state is persisted; nothing plays until the user has interacted
+   (browser autoplay policy). The speaker toggle in the match HUD mutes every
+   AudioNode through the shared master switch. */
 
 let ctx: AudioContext | null = null;
 let muted = localStorage.getItem("wc26_muted") === "1";
@@ -22,6 +24,7 @@ export function isMuted() {
 export function setMuted(m: boolean) {
   muted = m;
   localStorage.setItem("wc26_muted", m ? "1" : "0");
+  if (m) crowd.stop();
 }
 
 function tone(freq: number, start: number, dur: number, type: OscillatorType = "sine", gain = 0.18, sweepTo?: number) {
@@ -46,10 +49,16 @@ export const sound = {
     tone(330, 0, 0.18, "sawtooth", 0.16, 660);
     tone(440, 0.12, 0.3, "square", 0.14);
   },
+  /* Referee whistle: 880Hz sine, 300ms, gain 0.4 (half/full-time). */
   whistle() {
     if (muted) return;
-    tone(2100, 0, 0.14, "triangle", 0.1);
-    tone(2100, 0.18, 0.2, "triangle", 0.1);
+    tone(880, 0, 0.3, "sine", 0.4);
+  },
+  fullTimeWhistle() {
+    if (muted) return;
+    tone(880, 0, 0.3, "sine", 0.4);
+    tone(880, 0.38, 0.3, "sine", 0.4);
+    tone(880, 0.76, 0.45, "sine", 0.4);
   },
   red() {
     if (muted) return;
@@ -64,30 +73,29 @@ export const sound = {
 };
 
 /* ------------------- crowd atmosphere (procedural, no assets) -------------
- * A looped brown-noise bed through a bandpass filter = stadium murmur.
- * Reactions re-shape the same bed: a fast swell-and-drop for an "OOOH", a
- * long hot decay for a goal roar. Everything respects the mute toggle. */
+ * White noise looped through a lowpass BiquadFilterNode (400Hz) at gain 0.15
+ * = the ambient stadium bed, on whenever a match view is mounted (and not
+ * muted). Reactions re-shape the same bed:
+ *   shot swell — gain to 0.6 over 200ms, decaying back over ~1s
+ *   goal      — gain spike to 1.0 + a +4-semitone pitch shift (playbackRate
+ *               × 2^(4/12)) held for 2s, then fade home
+ *   groan     — darker, smaller swell for cards / injuries               */
 
 let crowdSrc: AudioBufferSourceNode | null = null;
 let crowdGain: GainNode | null = null;
 let crowdFilter: BiquadFilterNode | null = null;
-let murmurTimer: number | null = null;
 let noiseCache: AudioBuffer | null = null;
 
-const CROWD_BASE = 0.05;
+const CROWD_BASE = 0.15;
+const PITCH_UP = Math.pow(2, 4 / 12);   // +4 semitones
 
 function noiseBuffer(ac: AudioContext): AudioBuffer {
   if (noiseCache) return noiseCache;
   const len = ac.sampleRate * 3;
   const buf = ac.createBuffer(1, len, ac.sampleRate);
   const data = buf.getChannelData(0);
-  // Brown-ish noise via a clamped random walk; nudge the tail back toward the
-  // head so the loop seam disappears under the bandpass.
-  let v = 0;
-  for (let i = 0; i < len; i++) {
-    v = Math.max(-1, Math.min(1, v + (Math.random() * 2 - 1) * 0.08));
-    data[i] = v * 0.8;
-  }
+  for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;  // white noise
+  // Cross-fade the loop seam so the bed never clicks.
   const blend = Math.floor(ac.sampleRate * 0.25);
   for (let i = 0; i < blend; i++) {
     const a = i / blend;
@@ -105,26 +113,17 @@ export const crowd = {
     crowdSrc.buffer = noiseBuffer(ac);
     crowdSrc.loop = true;
     crowdFilter = ac.createBiquadFilter();
-    crowdFilter.type = "bandpass";
-    crowdFilter.frequency.value = 650;
-    crowdFilter.Q.value = 0.55;
+    crowdFilter.type = "lowpass";
+    crowdFilter.frequency.value = 400;
+    crowdFilter.Q.value = 0.7;
     crowdGain = ac.createGain();
     crowdGain.gain.setValueAtTime(0.0001, ac.currentTime);
-    crowdGain.gain.exponentialRampToValueAtTime(CROWD_BASE, ac.currentTime + 1.4);
+    crowdGain.gain.exponentialRampToValueAtTime(CROWD_BASE, ac.currentTime + 1.2);
     crowdSrc.connect(crowdFilter).connect(crowdGain).connect(ac.destination);
     crowdSrc.start();
-    // Gentle breathing: small random swells so the murmur never sits still.
-    murmurTimer = window.setInterval(() => {
-      if (!crowdGain || !ac) return;
-      const t = ac.currentTime;
-      const target = CROWD_BASE * (0.8 + Math.random() * 0.55);
-      crowdGain.gain.cancelScheduledValues(t);
-      crowdGain.gain.setTargetAtTime(target, t, 1.2);
-    }, 2600);
   },
 
   stop() {
-    if (murmurTimer != null) { window.clearInterval(murmurTimer); murmurTimer = null; }
     if (crowdSrc) {
       const ac = audio();
       if (ac && crowdGain) {
@@ -133,37 +132,33 @@ export const crowd = {
         crowdGain.gain.setTargetAtTime(0.0001, t, 0.25);
       }
       const src = crowdSrc;
-      window.setTimeout(() => { try { src.stop(); } catch { /* already stopped */ } }, 700);
+      window.setTimeout(() => { try { src.stop(); } catch { /* stopped */ } }, 700);
       crowdSrc = null; crowdGain = null; crowdFilter = null;
     }
   },
 
-  /* A near-miss "OOOH" — quick swell, quick drop. amount 0..1. */
+  /* Shot swell: up to 0.6 in 200ms, back to the bed over ~1s. */
   excite(amount = 1) {
     const ac = audio();
-    if (!ac || muted || !crowdGain || !crowdFilter) return;
+    if (!ac || muted || !crowdGain) return;
     const t = ac.currentTime;
-    const peak = CROWD_BASE * (2.2 + 2.2 * amount);
+    const peak = CROWD_BASE + (0.6 - CROWD_BASE) * Math.max(0.2, Math.min(1, amount));
     crowdGain.gain.cancelScheduledValues(t);
-    crowdGain.gain.setTargetAtTime(peak, t, 0.12);
-    crowdGain.gain.setTargetAtTime(CROWD_BASE, t + 0.5, 0.9);
-    crowdFilter.frequency.cancelScheduledValues(t);
-    crowdFilter.frequency.setTargetAtTime(950, t, 0.1);
-    crowdFilter.frequency.setTargetAtTime(650, t + 0.6, 1.0);
+    crowdGain.gain.linearRampToValueAtTime(peak, t + 0.2);
+    crowdGain.gain.setTargetAtTime(CROWD_BASE, t + 0.25, 0.35);
   },
 
-  /* The goal roar: hits hard, stays hot, cools slowly. */
+  /* Goal roar: gain to 1.0 + pitch +4 semitones for 2s, then fade home. */
   roar() {
     const ac = audio();
-    if (!ac || muted || !crowdGain || !crowdFilter) return;
+    if (!ac || muted || !crowdGain || !crowdSrc) return;
     const t = ac.currentTime;
     crowdGain.gain.cancelScheduledValues(t);
-    crowdGain.gain.setTargetAtTime(CROWD_BASE * 7, t, 0.08);
-    crowdGain.gain.setTargetAtTime(CROWD_BASE * 2.2, t + 1.6, 1.4);
-    crowdGain.gain.setTargetAtTime(CROWD_BASE, t + 4.5, 2.0);
-    crowdFilter.frequency.cancelScheduledValues(t);
-    crowdFilter.frequency.setTargetAtTime(1400, t, 0.08);
-    crowdFilter.frequency.setTargetAtTime(650, t + 3.0, 1.5);
+    crowdGain.gain.linearRampToValueAtTime(1.0, t + 0.1);
+    crowdGain.gain.setTargetAtTime(CROWD_BASE, t + 2.0, 1.2);
+    crowdSrc.playbackRate.cancelScheduledValues(t);
+    crowdSrc.playbackRate.setValueAtTime(PITCH_UP, t);
+    crowdSrc.playbackRate.setTargetAtTime(1.0, t + 2.0, 0.5);
   },
 
   /* Grumbles for a card against us / an injury stoppage. */
@@ -172,10 +167,10 @@ export const crowd = {
     if (!ac || muted || !crowdGain || !crowdFilter) return;
     const t = ac.currentTime;
     crowdGain.gain.cancelScheduledValues(t);
-    crowdGain.gain.setTargetAtTime(CROWD_BASE * 2.6, t, 0.15);
+    crowdGain.gain.setTargetAtTime(CROWD_BASE * 2.2, t, 0.15);
     crowdGain.gain.setTargetAtTime(CROWD_BASE, t + 0.8, 1.0);
     crowdFilter.frequency.cancelScheduledValues(t);
-    crowdFilter.frequency.setTargetAtTime(380, t, 0.12);
-    crowdFilter.frequency.setTargetAtTime(650, t + 1.0, 1.2);
+    crowdFilter.frequency.setTargetAtTime(220, t, 0.12);
+    crowdFilter.frequency.setTargetAtTime(400, t + 1.0, 1.2);
   },
 };
