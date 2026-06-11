@@ -312,6 +312,26 @@ function ManageSim({ onBack }: { onBack: () => void }) {
     });
   };
 
+  // Random draw: cycle flags like a tombola, then LOCK the landed nation and
+  // go straight into the career — no re-rolls, you manage what you're given.
+  const [rolling, setRolling] = useState<string | null>(null);
+  const randomCareer = () => {
+    if (!teams.length || rolling) return;
+    const final = teams[Math.floor(Math.random() * teams.length)].code;
+    let n = 0;
+    const total = 22;
+    const iv = window.setInterval(() => {
+      n++;
+      if (n >= total) {
+        window.clearInterval(iv);
+        setRolling(final);
+        window.setTimeout(() => { setRolling(null); setCode(final); setCareer(true); }, 1200);
+      } else {
+        setRolling(teams[Math.floor(Math.random() * teams.length)].code);
+      }
+    }, 90);
+  };
+
   // Recompute lineup strength whenever the XI changes & is complete.
   useEffect(() => {
     if (code && xi.length === 11) {
@@ -351,8 +371,9 @@ function ManageSim({ onBack }: { onBack: () => void }) {
         </button>
         <select
           value={code}
+          disabled={!!rolling}
           onChange={(e) => pickTeam(e.target.value)}
-          className="rounded-xl bg-ink-card px-3 py-2 font-semibold outline-none ring-1 ring-white/10 focus:ring-gold"
+          className="rounded-xl bg-ink-card px-3 py-2 font-semibold outline-none ring-1 ring-white/10 focus:ring-gold disabled:opacity-50"
         >
           <option value="">Choose your nation…</option>
           {teams.map((t) => (
@@ -361,8 +382,25 @@ function ManageSim({ onBack }: { onBack: () => void }) {
             </option>
           ))}
         </select>
+        {!code && (
+          <button onClick={randomCareer} disabled={!!rolling}
+            className="btn-primary text-sm disabled:opacity-60" title="Fate decides — no re-rolls">
+            🎲 Random draw
+          </button>
+        )}
         {code && <span className="text-4xl">{flag(code)}</span>}
       </div>
+
+      {rolling && (
+        <div className="card mb-4 p-8 text-center">
+          <div className="text-xs uppercase tracking-[0.3em] text-gold">The draw — no re-rolls</div>
+          <div className="mt-3 text-8xl transition-transform">{flag(rolling)}</div>
+          <div className="mt-2 font-display text-3xl tracking-wide">
+            {teams.find((t) => t.code === rolling)?.name}
+          </div>
+          <div className="mt-1 text-xs text-white/40">Whoever it lands on, you manage them. Good luck.</div>
+        </div>
+      )}
 
       {!code && active && (
         <div className="card mb-4 flex flex-wrap items-center gap-3 p-4">

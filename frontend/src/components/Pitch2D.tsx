@@ -106,7 +106,11 @@ export default function Pitch2D({
             : `⚽ GOAL — ${lastEvent.scorer}`,
           ours, CELEBRATE_MS,
         );
-        freeze(CELEBRATE_MS + 300);
+        // After the celebration: back to the centre spot for kick-off, both
+        // teams reform (dots pull back to their anchors once the party ends),
+        // short hold, then open play resumes.
+        freeze(CELEBRATE_MS + 1500);
+        later(() => { b.tx = 50; b.ty = 50; }, CELEBRATE_MS);
       };
       if (src === "penalty" || src === "freekick") {
         b.tx = src === "penalty" ? spotX : fkX;
