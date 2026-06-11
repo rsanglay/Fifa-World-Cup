@@ -120,9 +120,27 @@ export default function LiveMatchWS({
   }, [frame, team]);
 
   if (!frame || !snap) {
-    return <div className="card flex h-64 items-center justify-center text-txt-secondary">
-      Connecting to the match…
-    </div>;
+    // Pre-first-frame state: never hang silently — show what the socket is
+    // doing and give a way out when the session is unrecoverable.
+    return (
+      <div className="card flex h-64 flex-col items-center justify-center gap-3 text-txt-secondary">
+        {failed ? (
+          <>
+            <div className="text-danger">Couldn't reach the match session.</div>
+            <div className="max-w-md text-center text-xs">
+              The server doesn't know this match (it may have restarted, or the
+              30-minute reconnect window passed). Go back and kick off again.
+            </div>
+            <button className="btn-primary" onClick={() => window.location.reload()}>↻ Reload</button>
+          </>
+        ) : (
+          <>
+            <span className="h-5 w-5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+            <span>{attempts > 0 ? `Reconnecting (attempt ${attempts}/5)…` : "Connecting to the match…"}</span>
+          </>
+        )}
+      </div>
+    );
   }
 
   const home = snap.home, away = snap.away;

@@ -86,10 +86,12 @@ export function useLiveSocket(sessionId: string | null) {
         try { dispatch({ type: "frame", frame: JSON.parse(e.data) }); }
         catch { /* malformed frame: skip */ }
       };
-      ws.onclose = () => {
+      ws.onclose = (ev) => {
         wsRef.current = null;
         if (closedByUs.current) return;
-        if (retries.current >= MAX_RETRIES) {
+        // 4004 = the server does not know this session (restarted backend or
+        // expired 30-minute grace) — retrying cannot help, fail fast.
+        if (ev.code === 4004 || retries.current >= MAX_RETRIES) {
           dispatch({ type: "status", connected: false, attempts: retries.current, failed: true });
           return;
         }
