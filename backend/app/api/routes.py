@@ -1,7 +1,12 @@
 """All HTTP routes for the World Cup 2026 predictor."""
 from __future__ import annotations
 
+from typing import Optional
+
 from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
+
+from app.engine.livesim import session as live_sessions
+from app.engine.livesim import ws_handler
 
 from app.core.data import (
     group_stage_with_rest,
@@ -66,6 +71,34 @@ def get_team(code: str):
     return {**teams[code], "squad": squad, "suggested_xi": xi}
 
 
+@router.get("/teams/{code}/squad")
+def get_team_squad(code: str, session_id: Optional[str] = Query(None)):
+    """Squad with per-player form for the lineup builder.
+
+    Form defaults to 0.70 (neutral). Pass the career `session_id` to overlay
+    the live tournament form, injury and suspension state.
+    """
+    teams = load_teams()
+    code = code.upper()
+    if code not in teams:
+        raise HTTPException(404, f"Unknown team: {code}")
+    squads = load_squads()
+    overlay = manage_session.squad_overlay(session_id, code) or {}
+    form = overlay.get("form", {})
+    cards = overlay.get("card_state", {})
+    injured = overlay.get("injured", {})
+    out = []
+    for p in squads.get(code, []):
+        d = p.to_dict()
+        d["form"] = form.get(p.id, 0.7)
+        d["yellows"] = cards.get(p.id, {}).get("yellows", 0)
+        d["suspended"] = cards.get(p.id, {}).get("suspended_next", False)
+        d["injured"] = p.id in injured
+        d["injured_rounds"] = injured.get(p.id, 0)
+        out.append(d)
+    return {"team": code, "squad": out}
+
+
 @router.get("/groups")
 def get_groups():
     teams = load_teams()
@@ -112,8 +145,10 @@ def predict_match(req: MatchPredictRequest):
 
 
 @router.get("/odds")
-def tournament_odds(simulations: int = Query(5000, ge=500, le=20000)):
-    return sim.cached_odds(simulations)
+async def tournament_odds(simulations: int = Query(5000, ge=500, le=20000)):
+    """Tournament odds. Cached for 10 minutes; a cache miss runs the Monte
+    Carlo in a worker thread so the event loop stays responsive."""
+    return await sim.cached_odds_async(simulations)
 
 
 @router.get("/model/diagnostics")
@@ -190,20 +225,67 @@ def manage_second_half(req: ManageSecondHalfRequest):
 # --------------------------- live in-game management ---------------------- #
 @router.post("/manage/live/start")
 def manage_live_start(req: LiveStartRequest):
-    """Kick off an interactive match: tick it forward, pause, manage, substitute."""
+    """Kick off an interactive live match.
+
+    Returns the WebSocket match `session_id` for `/ws/manage/live/{id}`.
+    Rejects XIs naming suspended or injured players with a 422.
+    """
     try:
         return manage_session.live_start(req.session_id, req.starting_xi, req.mentality)
     except KeyError as e:
         raise HTTPException(404, str(e))
+    except ValueError as e:
+        detail = e.args[0] if e.args else "Invalid starting XI."
+        raise HTTPException(422, detail)
 
 
 @router.post("/manage/live/tick")
 def manage_live_tick(req: LiveTickRequest):
-    """Advance the live match by 1-5 game minutes (stops at HT / ET / FT)."""
+    """DEPRECATED: HTTP fallback. Live matches stream over
+    `GET /ws/manage/live/{session_id}` — clients should not poll this."""
     try:
         return manage_session.live_tick(req.session_id, req.minutes)
     except KeyError as e:
         raise HTTPException(404, str(e))
+
+
+async def manage_live_ws(ws: WebSocket, session_id: str):
+    """Live match stream: the server ticks one game-minute every 500ms and
+    pushes a frame { minute, score, events[], player_positions[], ball_xy,
+    possession_team, match_phase, stats }. Clients send commands:
+    {"action": "pause"|"resume"|"speed"|"tactics"|"sub", ...}.
+
+    On disconnect the tick task is cancelled but the session survives for 30
+    minutes, so a reconnect resumes from the same game minute.
+    """
+    ms = manage_session.get_match_session(session_id)
+    if ms is None:
+        await ws.close(code=4004)
+        return
+    await ws.accept()
+    live_sessions.pin(ms)
+    ws_handler.hub.attach(session_id, ws)
+    try:
+        await ws.send_json(manage_session.current_frame(ms))
+        ws_handler.ensure_tick_loop(ms, lambda: manage_session.ws_tick(ms))
+        while True:
+            msg = await ws.receive_json()
+            out = manage_session.ws_command(ms, msg)
+            if out is not None:
+                await ws.send_json(out)
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        pass
+    finally:
+        ws_handler.hub.detach(session_id, ws)
+        if ws_handler.hub.empty(session_id):
+            ws_handler.suspend(ms)
+
+
+# Registered on the router (=> /api/ws/manage/live/{id}); main.py also mounts
+# it at the documented root path /ws/manage/live/{id}.
+router.add_api_websocket_route("/ws/manage/live/{session_id}", manage_live_ws)
 
 
 @router.post("/manage/live/tactics")

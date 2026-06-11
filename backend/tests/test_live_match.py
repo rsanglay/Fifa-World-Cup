@@ -100,6 +100,7 @@ def test_substitution_limit_enforced():
     mt, _ = _start(seed=5)
     mt.tick_live(5)
     live = mt.live
+    already = live.subs_made          # injury auto-subs also burn the budget
     made = 0
     for pos in ("MID", "DEF", "FWD", "GK"):
         outs = [i for i in live.xi if live.by_id[i].position == pos]
@@ -108,7 +109,7 @@ def test_substitution_limit_enforced():
             _, msg = mt.live_substitute(o, n)
             if msg == "ok":
                 made += 1
-    assert made == SUBS_LIMIT  # 6th legal swap must have been refused
+    assert made == SUBS_LIMIT - already  # next legal swap must be refused
     snap = mt.live.snapshot()
     assert snap["subs_remaining"] == 0
 
@@ -138,19 +139,27 @@ def test_mid_match_tactics_change_applies():
     assert p_att > p_def
 
 
-def test_fatigue_drains_and_fresh_sub_restores():
+def test_fatigue_drains_positionally_and_fresh_sub_restores():
+    """Positional decay: outfielders drain hardest, the keeper barely moves."""
     mt, _ = _start(seed=13)
-    for _ in range(12):  # past half-time, deep into the second half
+    for _ in range(20):  # deep into the second half (HT pause costs a tick)
         snap = mt.tick_live(5)
         if snap["done"]:
             pytest.skip("match ended early in this seed")
         if snap["minute"] >= 75:
             break
     live = mt.live
-    starters = [i for i in live.xi]
-    assert all(live.stamina[i] < 70 for i in starters)
+    # Judge only players who have been on the whole time (auto-subs are fresh).
+    vets = [i for i in live.xi if live.minutes_played.get(i, 0) >= 70]
+    outfield = [i for i in vets if live.by_id[i].position != "GK"]
+    assert outfield and all(live.stamina[i] < 95 for i in outfield)
+    gk = next((i for i in vets if live.by_id[i].position == "GK"), None)
+    if gk is not None:  # GK decay 0.05/min: freshest player on the pitch
+        assert live.stamina[gk] > max(live.stamina[i] for i in outfield)
     in_id = next(i for i in live.bench if live.by_id[i].position == "MID")
-    out_id = next(i for i in starters if live.by_id[i].position == "MID")
+    out_id = next((i for i in outfield if live.by_id[i].position == "MID"), None)
+    if out_id is None:
+        pytest.skip("no veteran midfielder left to replace in this seed")
     mt.live_substitute(out_id, in_id)
     assert live.stamina[in_id] == 100.0
     # Fresher legs -> better effective lineup delta than before the sub.

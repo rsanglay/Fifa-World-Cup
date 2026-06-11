@@ -60,17 +60,18 @@ def test_condition_flows_into_managed_state_payload():
 
 # -------------------------------- injuries --------------------------------- #
 def test_live_injury_carries_into_next_round():
-    # Seed-hunt a match that produces an injury (probability ~9% per match).
-    for seed in range(40):
+    # Seed-hunt a match that produces a moderate/serious injury (~9% of
+    # matches yield a knock; half of those are minor and carry 0 rounds).
+    for seed in range(80):
         mt = _mt(seed=seed)
         _play_live_match(mt)
         if mt.injured:
             pid, rounds = next(iter(mt.injured.items()))
-            assert 1 <= rounds <= 2
+            assert 1 <= rounds <= 2   # moderate = 1, serious = 2
             payload = {p["id"]: p for p in mt.state()["squad"]}
             assert payload[pid]["injured"] is True
             return
-    pytest.fail("no injury in 40 seeded matches — probability wiring broken")
+    pytest.fail("no injury in 80 seeded matches — probability wiring broken")
 
 
 # ---------------------------- dressing-room events -------------------------- #
@@ -96,8 +97,11 @@ def test_kickoff_discards_unanswered_event_gracefully():
         mt = _mt(seed=seed)
         _play_live_match(mt)
         if mt.pending_event and mt.phase != "done" and mt.alive:
-            _play_live_match(mt)        # kick off without answering
-            assert mt.pending_event is None or mt.phase == "done"
+            mt.start_live(_xi(mt), "balanced")   # kick off without answering
+            # Kick-off ducks the press: the card is discarded immediately.
+            assert mt.pending_event is None
+            while mt.live is not None:
+                mt.tick_live(5)
             return
     pytest.skip("no pending event found to discard")
 

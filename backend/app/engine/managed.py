@@ -25,7 +25,9 @@ import numpy as np
 
 from app.engine import dressing_room
 from app.engine.condition import SquadCondition
-from app.engine.live import LiveMatch
+from app.engine.live import LiveMatch  # noqa: F401 (type/back-compat)
+from app.engine.livesim.simulator import ChainMatch
+from app.engine.livesim.stamina import DEFAULT_FORM
 from app.engine.stats import StatsTracker
 from app.engine.match import (
     RED_CARD_PROB,
@@ -110,6 +112,10 @@ class ManagedTournament:
         # and between-rounds dressing-room events.
         self.condition = SquadCondition(squad)
         self.injured: Dict[str, int] = {}          # player_id -> rounds out
+        # Per-player form 0.0-1.0 (default 0.7). Moves after every match:
+        # 60'+ in a win +0.05, any minutes in a loss -0.05, unused -0.02.
+        self.player_form: Dict[str, float] = {p.id: DEFAULT_FORM for p in squad}
+        self.last_ratings: List[dict] = []         # post-match 1-10 ratings
         self.stats = StatsTracker(all_squads, {c: t["name"] for c, t in data.teams.items()})
         self.pending_event: Optional[dict] = None
         self.news: List[str] = []
@@ -355,6 +361,28 @@ class ManagedTournament:
         self._maybe_event()
 
     # ------------------------------------------------------ live (interactive)
+    def xi_eligibility_problems(self, xi_ids) -> List[dict]:
+        """Suspended / injured players in a proposed XI (for 422 validation)."""
+        by = {p.id: p for p in self.squad}
+        problems = []
+        for pid in xi_ids:
+            p = by.get(pid)
+            if p is None:
+                continue
+            if self.suspended.get(pid, 0) > 0:
+                problems.append({"player_id": pid, "name": p.name,
+                                 "reason": "suspended"})
+            elif self.injured.get(pid, 0) > 0:
+                problems.append({"player_id": pid, "name": p.name,
+                                 "reason": f"injured ({self.injured[pid]} match(es) left)"})
+        return problems
+
+    def card_state(self) -> Dict[str, dict]:
+        """Tournament card ledger: yellows accumulated + pending suspension."""
+        return {p.id: {"yellows": self.yellows.get(p.id, 0),
+                       "suspended_next": self.suspended.get(p.id, 0) > 0}
+                for p in self.squad}
+
     def start_live(self, xi_ids, mentality="balanced"):
         """Begin an interactive minute-by-minute match (in-game management)."""
         mm = self._current_managed_match()
@@ -364,7 +392,7 @@ class ManagedTournament:
         home, away, date, country = mm["home"], mm["away"], mm["date"], mm["country"]
         sh, sa, h_adv = self._strengths(home, away, date, country)
         opp = away if home == self.team else home
-        self.live = LiveMatch(
+        self.live = ChainMatch(
             rng=self.rng, team=self.team, home=home, away=away,
             knockout=mm["knockout"], sh=sh, sa=sa, h_adv=h_adv,
             squad=[p for p in self.squad
@@ -372,6 +400,7 @@ class ManagedTournament:
             opp_players=best_xi(self.all_squads.get(opp, [])),
             xi_ids=xi_ids, mentality=mentality, date=date,
             cond_mult=self.condition.multipliers(),
+            form=self.player_form,
         )
         self._live_mm = mm
 
@@ -427,22 +456,52 @@ class ManagedTournament:
         self.last_round_results = [md]
         self._record_discipline_live(lv.yellow_ids, lv.red_ids)
         # Knocks picked up in the match rule players out of coming round(s).
+        # ChainMatch carries a severity verdict (minor 0 / moderate 1 / serious
+        # 2 matches); legacy engines fall back to a random 1-2 round layoff.
+        severity = getattr(lv, "injury_rounds", {})
         for pid in lv.injured_ids:
-            self.injured[pid] = int(self.rng.integers(1, 3))   # 1-2 rounds
+            rounds_out = severity.get(pid, int(self.rng.integers(1, 3)))
             p = lv.by_id.get(pid)
+            label = getattr(lv, "injury_types", {}).get(pid, "")
+            if rounds_out > 0:
+                self.injured[pid] = rounds_out
             if p:
-                self.news.append(f"🏥 {p.name} is injured — out for "
-                                 f"{self.injured[pid]} match(es).")
+                if rounds_out > 0:
+                    self.news.append(f"🏥 {p.name} has a {label or 'knock'} — out for "
+                                     f"{rounds_out} match(es).")
+                else:
+                    self.news.append(f"🏥 {p.name} picked up a minor knock — "
+                                     f"available next match.")
         won = lv.winner == self.team
         drew = lv.winner is None
         self._last_xi = list(lv.played_ids)
         self.condition.after_round(lv.played_ids, None if drew else won)
         self.stats.add_goal_events(md["events"])
+        self._update_form(lv, won, drew)
+        self.last_ratings = lv.ratings() if hasattr(lv, "ratings") else []
         self._rate_and_track(md)
         self._finish_round(mm, lv.winner)
         self.live = None
         self._live_mm = None
         self._maybe_event()
+
+    def _update_form(self, lv, won: bool, drew: bool) -> None:
+        """Move per-player form after a managed match.
+
+        60+ minutes in a win: +0.05 · any minutes in a loss: -0.05 ·
+        unused squad players: -0.02. Clamped to [0, 1].
+        """
+        minutes = getattr(lv, "minutes_played", {})
+        for p in self.squad:
+            mins = minutes.get(p.id, 0)
+            cur = self.player_form.get(p.id, DEFAULT_FORM)
+            if mins == 0:
+                cur -= 0.02
+            elif won and mins >= 60:
+                cur += 0.05
+            elif (not won and not drew):
+                cur -= 0.05
+            self.player_form[p.id] = max(0.0, min(1.0, cur))
 
     def _tick_injuries(self):
         for pid in list(self.injured):
@@ -672,8 +731,34 @@ class ManagedTournament:
             "suspended": self.suspended.get(p.id, 0) > 0, "yellows": self.yellows.get(p.id, 0),
             "injured": self.injured.get(p.id, 0) > 0,
             "injured_rounds": self.injured.get(p.id, 0),
+            "form": round(self.player_form.get(p.id, DEFAULT_FORM), 2),
             **self.condition.payload(p.id),
         } for p in self.squad]
+
+    def _opp_recent_form(self, opp: str) -> List[str]:
+        """W/D/L (from the opponent's perspective) over their last 5 results."""
+        out: List[str] = []
+        for m in self.match_log:
+            if opp not in (m.get("home"), m.get("away")):
+                continue
+            hg, ag = m.get("home_goals", 0), m.get("away_goals", 0)
+            winner = m.get("winner")
+            if winner is None and hg == ag:
+                out.append("D")
+            else:
+                w = winner or (m["home"] if hg > ag else m["away"])
+                out.append("W" if w == opp else "L")
+        return out[-5:]
+
+    def team_morale(self) -> dict:
+        """Squad mood from average form: Very Good / Good / Poor / Crisis."""
+        if not self.player_form:
+            avg = DEFAULT_FORM
+        else:
+            avg = sum(self.player_form.values()) / len(self.player_form)
+        label = ("Very Good" if avg >= 0.78 else "Good" if avg >= 0.6
+                 else "Poor" if avg >= 0.45 else "Crisis")
+        return {"avg_form": round(avg, 2), "label": label}
 
     def _next_fixture(self):
         mm = self._current_managed_match()
@@ -683,6 +768,8 @@ class ManagedTournament:
         stage = (f"Group {self.group} · Matchday {self.md_index + 1}" if mm["kind"] == "group"
                  else KO_LABEL[KO_ROUNDS[self.ko_round_idx]])
         return {"stage": stage, "opponent": opp, "date": mm["date"],
+                "opponent_elo": round(self.base_elo.get(opp, 1500.0)),
+                "opponent_form": self._opp_recent_form(opp),
                 "venue": (mm.get("fx") or mm.get("km").meta if mm.get("km") else {}).get("venue") if mm.get("fx") else (mm.get("km").meta.get("venue") if mm.get("km") else None),
                 "home": mm["home"] == self.team}
 
@@ -711,6 +798,9 @@ class ManagedTournament:
             "expectation": self.expectation, "achievements": self.achievements,
             "ratings": self.ratings, "avg_rating": round(sum(self.ratings) / len(self.ratings), 1) if self.ratings else None,
             "form": self.form[-5:], "review": getattr(self, "review", None),
+            "last_ratings": self.last_ratings,
+            "card_state": self.card_state(),
+            "morale": self.team_morale(),
             "top_scorers": self.stats.top(10),
             "team_scorers": self.stats.top(5, team=self.team),
             "pending_event": self.pending_event,

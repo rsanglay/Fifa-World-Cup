@@ -1,7 +1,6 @@
 """Simulation service: caching, manage-a-team runs, single-match prediction."""
 from __future__ import annotations
 
-from functools import lru_cache
 from typing import Dict, List, Optional
 
 import numpy as np
@@ -14,16 +13,37 @@ from app.engine.simulator import monte_carlo, simulate_once
 from app.engine.squad import lineup_delta
 
 
-@lru_cache(maxsize=8)
-def cached_odds(simulations: int = 5000) -> dict:
-    """Live tournament odds via the vectorised fast engine.
+# --- Odds cache: module-level dict with a 600s TTL. A cache hit returns the
+# stored (possibly stale-by-up-to-10-minutes) payload instantly; a miss runs
+# the Monte Carlo in a worker thread so the event loop never blocks.
+ODDS_TTL_SECONDS = 600.0
+_ODDS_CACHE: Dict[int, tuple] = {}   # simulations -> (computed_at, payload)
 
-    Computes fresh each (uncached) call — even 10k sims run in well under a
-    second — so the numbers are genuinely live, not a static file. lru_cache only
-    de-dupes identical back-to-back requests.
-    """
+
+def cached_odds(simulations: int = 5000) -> dict:
+    """Synchronous odds with the TTL cache (used by diagnostics + tests)."""
+    import time
+
+    key = int(simulations)
+    hit = _ODDS_CACHE.get(key)
+    if hit and time.time() - hit[0] < ODDS_TTL_SECONDS:
+        return hit[1]
     data = load_tournament()
-    return monte_carlo_fast(data, n=simulations, seed=2026)
+    payload = monte_carlo_fast(data, n=key, seed=2026)
+    _ODDS_CACHE[key] = (time.time(), payload)
+    return payload
+
+
+async def cached_odds_async(simulations: int = 5000) -> dict:
+    """Async odds: TTL cache hit is instant; a miss computes off-thread."""
+    import asyncio
+    import time
+
+    key = int(simulations)
+    hit = _ODDS_CACHE.get(key)
+    if hit and time.time() - hit[0] < ODDS_TTL_SECONDS:
+        return hit[1]
+    return await asyncio.to_thread(cached_odds, key)
 
 
 def predict_single(home: str, away: str, neutral: bool = True) -> dict:

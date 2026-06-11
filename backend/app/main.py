@@ -35,6 +35,12 @@ async def _data_freshness(request, call_next):
 
 app.include_router(router, prefix="/api", tags=["world-cup"])
 
+# Live match WebSocket at the documented root path (also available under
+# /api/ws/... via the router for same-origin dev-proxy setups).
+from app.api.routes import manage_live_ws  # noqa: E402
+
+app.add_api_websocket_route("/ws/manage/live/{session_id}", manage_live_ws)
+
 
 @app.get("/")
 def root():
