@@ -25,8 +25,10 @@ type Line = "GK" | "DEF" | "MID" | "FWD";
 
 interface Dot { x: number; y: number; tx: number; ty: number; line: Line }
 interface Flight {
-  fx: number; fy: number; tx: number; ty: number;
-  t0: number; dur: number; kind: "pass" | "shot" | "place";
+  tx: number; ty: number;                       // static target (shots, placements)
+  toDot?: { home: boolean; idx: number };       // homing target (passes to feet)
+  speed: number; est: number; travelled: number;
+  kind: "pass" | "shot" | "place";
   onLand?: () => void;
 }
 interface Flash { id: number; label: string; confetti: boolean }
@@ -92,14 +94,18 @@ export default function Pitch2D({
   }, [awayShape.d, awayShape.m, awayShape.f]); // eslint-disable-line
 
   /* ------------------------------------------------------------ ball flights */
-  const fly = (tx: number, ty: number, speed: number, kind: Flight["kind"], onLand?: () => void) => {
+  const fly = (tx: number, ty: number, speed: number, kind: Flight["kind"],
+               onLand?: () => void, toDot?: Flight["toDot"]) => {
     const b = ball.current;
-    const dist = Math.hypot(tx - b.x, ty - b.y);
+    const dist = Math.max(1, Math.hypot(tx - b.x, ty - b.y));
     carrier.current = null;
-    flight.current = {
-      fx: b.x, fy: b.y, tx, ty, t0: performance.now(),
-      dur: Math.max(120, (dist / speed) * 1000), kind, onLand,
-    };
+    flight.current = { tx, ty, toDot, speed, est: dist, travelled: 0, kind, onLand };
+  };
+  /* A foul/whistle: kill any flight, drop the ball dead where it is. */
+  const deadBall = () => {
+    flight.current = null;
+    carrier.current = null;
+    ball.current.lift = 0;
   };
   const dotOf = (home: boolean, idx: number): Dot | undefined =>
     (home ? homeDots.current : awayDots.current)[idx];
@@ -153,15 +159,14 @@ export default function Pitch2D({
     const idx = pickReceiver(side, carrier.current?.idx ?? null);
     const d = dotOf(side, idx);
     if (!d) return;
-    const dir = side ? 1 : -1;
-    fly(
-      Math.max(3, Math.min(97, d.x + dir * 1.5)),
-      Math.max(4, Math.min(96, d.y + (Math.random() - 0.5) * 3)),
-      PASS_SPEED, "pass",
+    // Homing pass: the ball chases the RECEIVER, not the spot they were on —
+    // it arrives at their feet however far they've run in the meantime.
+    fly(d.x, d.y, PASS_SPEED, "pass",
       () => {
         carrier.current = { home: side, idx };
         nextActionAt.current = performance.now() + 300 + Math.random() * 450;
       },
+      { home: side, idx },
     );
   };
 
@@ -260,7 +265,21 @@ export default function Pitch2D({
         }, fk ? 1000 : 240);
       });
     } else if (lastEvent.type === "red" || lastEvent.type === "yellow") {
-      show(`${lastEvent.type === "red" ? "🟥" : "🟨"} ${lastEvent.scorer}`, false, 1400);
+      // A foul stops play dead: ball drops at the spot, the whistle goes,
+      // the card is shown, then the FOULED side restarts with the free kick.
+      const red = lastEvent.type === "red";
+      deadBall();
+      freeze(red ? 3800 : 2600);
+      show(`⚠️ Foul — ${lastEvent.scorer}`, false, 950);
+      later(() => show(
+        red
+          ? `🟥 RED CARD — ${lastEvent.scorer}${lastEvent.second_yellow ? " (second yellow)" : ""}`
+          : `🟨 Booked — ${lastEvent.scorer}`,
+        false, red ? 2300 : 1500), 950);
+      later(() => {
+        kickoffSide.current = !evHome;            // free kick to the fouled team
+        nextActionAt.current = performance.now() + 150;
+      }, red ? 3600 : 2400);
     }
   }, [lastEvent, ourSide]); // eslint-disable-line
 
@@ -277,12 +296,29 @@ export default function Pitch2D({
         // Ball: in flight, carried, or awaiting the next open-play action.
         const fl = flight.current;
         if (fl) {
-          const t = Math.min(1, (now - fl.t0) / fl.dur);
-          const ease = fl.kind === "shot" ? t : t * (2 - t); // passes decelerate, shots don't
-          b.x = fl.fx + (fl.tx - fl.fx) * ease;
-          b.y = fl.fy + (fl.ty - fl.fy) * ease;
-          b.lift = fl.kind === "place" ? 0 : Math.sin(Math.PI * t) * (fl.kind === "shot" ? 0.25 : 0.8);
-          if (t >= 1) { flight.current = null; b.lift = 0; fl.onLand?.(); }
+          // Kinematic flight: constant speed toward the (possibly moving)
+          // target, easing out on arrival — no landing snap.
+          let txx = fl.tx, tyy = fl.ty;
+          if (fl.toDot) {
+            const d = dotOf(fl.toDot.home, fl.toDot.idx);
+            if (d) { txx = d.x; tyy = d.y; }
+          }
+          const dx = txx - b.x, dy = tyy - b.y;
+          const dist = Math.hypot(dx, dy);
+          const arrive = fl.kind === "pass" ? Math.max(0.4, Math.min(1, dist / 7)) : 1;
+          const stepLen = fl.speed * arrive * dt;
+          fl.travelled += stepLen;
+          if (dist <= Math.max(0.7, stepLen)) {
+            b.x = txx; b.y = tyy; b.lift = 0;
+            flight.current = null;
+            fl.onLand?.();
+          } else {
+            b.x += (dx / dist) * stepLen;
+            b.y += (dy / dist) * stepLen;
+            const prog = Math.min(1, fl.travelled / Math.max(fl.est, fl.travelled + dist));
+            b.lift = fl.kind === "place" ? 0
+              : Math.sin(Math.PI * prog) * (fl.kind === "shot" ? 0.25 : 0.7);
+          }
         } else if (carrier.current) {
           const d = dotOf(carrier.current.home, carrier.current.idx);
           if (d) {
