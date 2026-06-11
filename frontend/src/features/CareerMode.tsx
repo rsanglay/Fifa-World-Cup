@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { api, flag } from "../api/client";
 import LineupPicker from "../components/LineupPicker";
+import LiveMatchManager from "../components/LiveMatchManager";
 import PitchLineup from "../components/PitchLineup";
 import Confetti from "../components/Confetti";
 import ShareButton from "../components/ShareButton";
 import { sound } from "../lib/sound";
 import { careerStore } from "../lib/careerStore";
-import type { ManagedMatch, ManagedSquadPlayer, ManagedState, MatchEvent, Player } from "../types";
+import type { LiveSnapshot, ManagedMatch, ManagedSquadPlayer, ManagedState, Player } from "../types";
 
 const FORMATIONS: Record<string, [number, number, number]> = {
   "4-3-3": [4, 3, 3], "4-4-2": [4, 4, 2], "4-2-3-1": [4, 5, 1],
@@ -30,7 +31,7 @@ function pickXI(squad: ManagedSquadPlayer[], formation: string): string[] {
   return out;
 }
 
-type UIPhase = "select" | "firsthalf" | "halftime" | "secondhalf" | "result";
+type UIPhase = "select" | "live" | "result";
 
 export default function CareerMode({ team, onExit, resumeSession }: { team: string; onExit: () => void; resumeSession?: string }) {
   const [sid, setSid] = useState("");
@@ -38,7 +39,7 @@ export default function CareerMode({ team, onExit, resumeSession }: { team: stri
   const [xi, setXi] = useState<string[]>([]);
   const [formation, setFormation] = useState("4-3-3");
   const [mentality, setMentality] = useState("balanced");
-  const [secondMentality, setSecondMentality] = useState("balanced");
+  const [liveInit, setLiveInit] = useState<LiveSnapshot | null>(null);
   const [preview, setPreview] = useState<{ win: number; draw: number; lose: number; your_key: string; opp_key: string } | null>(null);
   const [ui, setUi] = useState<UIPhase>("select");
   const [busy, setBusy] = useState(false);
@@ -48,6 +49,7 @@ export default function CareerMode({ team, onExit, resumeSession }: { team: stri
     const onReady = (r: { session_id: string; state: ManagedState }) => {
       setSid(r.session_id); setState(r.state); setXi(pickXI(r.state.squad, "4-3-3"));
       careerStore.setActive({ sessionId: r.session_id, team, teamName: r.state.team_name });
+      if (r.state.live && !r.state.live.done) { setLiveInit(r.state.live); setUi("live"); }
     };
     const p = resumeSession
       ? api.manageGet(resumeSession).catch(() => api.manageStart(team))
@@ -87,12 +89,11 @@ export default function CareerMode({ team, onExit, resumeSession }: { team: stri
   const kickOff = () => {
     if (xi.length !== 11) return;
     setBusy(true);
-    api.managePlay(sid, xi, mentality).then((r) => { setState(r.state); setSecondMentality(mentality); setUi("firsthalf"); setBusy(false); })
-      .catch((e) => { setError(String(e?.message || e)); setBusy(false); });
-  };
-  const resume = () => {
-    setBusy(true);
-    api.manageSecondHalf(sid, secondMentality).then((r) => { setState(r.state); setUi("secondhalf"); setBusy(false); })
+    api.manageLiveStart(sid, xi, mentality)
+      .then((r) => {
+        if (r.live) { setLiveInit(r.live); setUi("live"); }
+        setBusy(false);
+      })
       .catch((e) => { setError(String(e?.message || e)); setBusy(false); });
   };
   const nextMatch = () => {
@@ -115,14 +116,11 @@ export default function CareerMode({ team, onExit, resumeSession }: { team: stri
           onFormation={(f: string) => { setFormation(f); setXi(pickXI(state.squad, f)); }}
           onMentality={setMentality} onAuto={() => setXi(pickXI(state.squad, formation))} onKickOff={kickOff}
         />
-      ) : ui === "firsthalf" && state.half_time ? (
-        <SegmentMatch key="fh" events={state.half_time.events} home={state.half_time.home} away={state.half_time.away}
-          names={names} start={0} end={45} onDone={() => setUi("halftime")} />
-      ) : ui === "halftime" && state.half_time ? (
-        <HalfTime state={state} secondMentality={secondMentality} setSecondMentality={setSecondMentality} onResume={resume} busy={busy} />
-      ) : ui === "secondhalf" && state.last_managed_match ? (
-        <SegmentMatch key="sh" events={state.last_managed_match.events || []} home={state.last_managed_match.home} away={state.last_managed_match.away}
-          names={names} start={45} end={maxMinute(state.last_managed_match)} onDone={() => setUi("result")} />
+      ) : ui === "live" && liveInit ? (
+        <LiveMatchManager
+          sid={sid} initial={liveInit} squad={state.squad} names={names} team={team}
+          onDone={(st) => { setState(st); setLiveInit(null); setUi("result"); }}
+        />
       ) : (
         <ResultPhase state={state} team={team} names={names} onNext={nextMatch} />
       )}
@@ -135,11 +133,6 @@ export default function CareerMode({ team, onExit, resumeSession }: { team: stri
       )}
     </div>
   );
-}
-
-function maxMinute(m: ManagedMatch): number {
-  const mx = Math.max(90, ...(m.events || []).map((e) => e.minute));
-  return mx > 90 ? 120 : 90;
 }
 
 /* ----------------------------------------------------------------- header */
@@ -228,89 +221,6 @@ function SelectPhase({ state, xi, formation, mentality, preview, suspended, busy
         <LineupPicker squad={state.squad as unknown as Player[]} selected={xi} formation={formation} onToggle={onToggle} onFormation={onFormation} unavailable={suspended} />
       )}
     </>
-  );
-}
-
-/* ------------------------------------------------------------- live segment */
-function SegmentMatch({ events, home, away, names, start, end, onDone }: {
-  events: MatchEvent[]; home: string; away: string; names: Record<string, string>; start: number; end: number; onDone: () => void;
-}) {
-  const [clock, setClock] = useState(start);
-  const seen = useRef(0);
-  const done = useRef(false);
-  useEffect(() => {
-    const t0 = performance.now();
-    const dur = 4500;
-    let raf = 0;
-    const tick = (now: number) => {
-      const f = Math.min(1, (now - t0) / dur);
-      setClock(Math.round(start + f * (end - start)));
-      if (f < 1) raf = requestAnimationFrame(tick);
-      else if (!done.current) { done.current = true; setTimeout(onDone, 700); }
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, []); // eslint-disable-line
-
-  const shown = events.filter((e) => e.minute <= clock);
-  const goals = shown.filter((e) => e.type !== "red");
-  const hg = goals.filter((e) => e.team === home).length;
-  const ag = goals.filter((e) => e.team === away).length;
-  useEffect(() => {
-    if (shown.length > seen.current) {
-      const l = shown[shown.length - 1];
-      if (l?.type === "red") sound.red(); else sound.goal();
-    }
-    seen.current = shown.length;
-  }, [shown.length]);
-
-  return (
-    <div className="card relative overflow-hidden p-6">
-      <div className="absolute right-4 top-3 flex items-center gap-1 text-sm">
-        <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
-        <span className="font-mono tabular-nums text-white/70">{clock}'</span>
-      </div>
-      <div className="grid grid-cols-3 items-center gap-2">
-        <div className="text-center"><div className="text-5xl">{flag(home)}</div><div className="mt-1 font-semibold">{names[home] || home}</div></div>
-        <motion.div key={`${hg}-${ag}`} initial={{ scale: 1.3 }} animate={{ scale: 1 }} className="text-center font-display text-6xl tabular-nums">{hg}:{ag}</motion.div>
-        <div className="text-center"><div className="text-5xl">{flag(away)}</div><div className="mt-1 font-semibold">{names[away] || away}</div></div>
-      </div>
-      <div className="mt-5 min-h-[50px] space-y-1">
-        <AnimatePresence>
-          {shown.map((e, i) => (
-            <motion.div key={`${e.minute}-${i}`} initial={{ opacity: 0, x: e.team === home ? -20 : 20 }} animate={{ opacity: 1, x: 0 }}
-              className={`flex items-center gap-2 text-sm ${e.team === away ? "flex-row-reverse text-right" : ""}`}>
-              <span className="text-white/40">{e.minute}'</span><span>{e.type === "red" ? "🟥" : "⚽"}</span>
-              <span className="font-medium">{e.scorer}</span>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
-    </div>
-  );
-}
-
-function HalfTime({ state, secondMentality, setSecondMentality, onResume, busy }: any) {
-  const ht = state.half_time;
-  const names = state.team_names;
-  return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="card p-6 text-center">
-      <div className="text-xs uppercase tracking-[0.3em] text-gold">Half-time</div>
-      <div className="mt-2 flex items-center justify-center gap-3 font-display text-4xl">
-        <span>{flag(ht.home)}</span>{ht.home_goals}<span className="text-white/30">:</span>{ht.away_goals}<span>{flag(ht.away)}</span>
-      </div>
-      <div className="mt-1 text-sm text-white/50">{names[ht.home]} vs {names[ht.away]}</div>
-      <div className="mt-5 text-sm text-white/60">Change your approach for the second half?</div>
-      <div className="mt-2 flex justify-center gap-2">
-        {MENTALITIES.map((m) => (
-          <button key={m.key} onClick={() => setSecondMentality(m.key)}
-            className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${secondMentality === m.key ? "bg-gold text-ink" : "bg-white/5 text-white/70 hover:bg-white/10"}`}>
-            {m.icon} {m.label}
-          </button>
-        ))}
-      </div>
-      <button onClick={onResume} disabled={busy} className="btn-primary mt-5">{busy ? "…" : "▶ Second half"}</button>
-    </motion.div>
   );
 }
 

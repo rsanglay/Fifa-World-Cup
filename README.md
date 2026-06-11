@@ -20,6 +20,13 @@ international football and the 48-team World Cup format.
   - **Manage a Nation** — pick a country, choose your **starting XI and bench**,
     set your formation, then play your World Cup out match by match. A weaker
     lineup measurably lowers your odds; rest your stars at your peril.
+  - **Live in-game management** — every managed match now plays out minute by
+    minute on a **Football-Manager-style 2D pitch**. Pause at any moment,
+    switch mentality mid-match, and make up to 5 substitutions — tired legs
+    lose effectiveness, fresh legs restore it, and your changes feed straight
+    back into the live probabilities. Half-time and extra-time breaks pause
+    the game for tactical decisions; yellow/red cards are shown live and carry
+    real suspensions into the next round.
 - **Groups & Fixtures** — all 12 groups and 72 group-stage matches with real
   dates and venues.
 
@@ -49,6 +56,14 @@ importance tier — they are a model, not official ratings.
    single-elimination Round of 32 → Final.
 5. **Manage-a-team** — your XI is scored against the squad's optimal XI; the gap
    becomes an Elo delta fed straight into the match engine.
+6. **Live matches** — the managed match is simulated **one minute at a time** on
+   the server (a Bernoulli thinning of the same Poisson rates, so expected
+   scorelines are unchanged). The client's 2D view is a pure renderer of the
+   event stream — the same headless-sim/viewer split Football Manager uses —
+   with formation-anchored player dots and an event-driven ball. Stamina decays
+   each minute (faster when attacking); effective ratings feed the per-minute
+   rates, so substitutions and mentality switches have a real, model-grounded
+   effect. The opposition runs a small AI that chases the game or parks the bus.
 
 The match model is deliberately tempered so a 48-team field's favourite tops out
 around 20–28% — realistic, not deterministic.
@@ -90,6 +105,11 @@ docker-compose up --build
 | POST | `/api/manage/lineup` | Score an XI → strength + Elo delta |
 | POST | `/api/manage/simulate` | Play a tournament managing one team |
 | POST | `/api/manage/odds` | Your team's odds with the chosen XI |
+| POST | `/api/manage/start` · `/api/manage/preview` | Start / preview a career match |
+| POST | `/api/manage/live/start` | Kick off an interactive live match |
+| POST | `/api/manage/live/tick` | Advance the live match 1–5 game minutes |
+| POST | `/api/manage/live/tactics` | Change mentality mid-match |
+| POST | `/api/manage/live/sub` | Make a substitution (max 5) |
 
 ## Licence
 MIT

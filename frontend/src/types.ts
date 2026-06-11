@@ -26,13 +26,43 @@ export interface Player {
 }
 
 export interface MatchEvent {
-  type?: "goal" | "red";
+  type?: "goal" | "red" | "yellow" | "chance" | "sub" | "pens";
   minute: number;
   team: string;
   scorer: string;
   scorer_id: string;
   position: string;
   assist: string | null;
+  outcome?: "saved" | "missed" | "woodwork";
+  second_yellow?: boolean;
+}
+
+export interface LiveSnapshot {
+  minute: number;
+  period: "1H" | "HT" | "2H" | "ET-BREAK" | "ET" | "FT";
+  home: string;
+  away: string;
+  home_goals: number;
+  away_goals: number;
+  our_side: "home" | "away";
+  events: MatchEvent[];
+  new_events: MatchEvent[];
+  xi: string[];
+  bench: string[];
+  stamina: Record<string, number>;
+  subs_made: number;
+  subs_remaining: number;
+  subs: { minute: number; out_id: string; in_id: string; out: string; in: string }[];
+  mentality: string;
+  opp_mentality: string;
+  our_red: number | null;
+  opp_red: number | null;
+  break: "HT" | "ET" | null;
+  done: boolean;
+  penalties: boolean;
+  home_pens: number | null;
+  away_pens: number | null;
+  knockout: boolean;
 }
 
 export interface LineupPlayer {
@@ -243,6 +273,7 @@ export interface ManagedState {
   won: boolean;
   awaiting_second_half: boolean;
   half_time: { home: string; away: string; home_goals: number; away_goals: number; events: MatchEvent[] } | null;
+  live: LiveSnapshot | null;
   expectation: { tier: string; label: string };
   achievements: string[];
   ratings: number[];

@@ -2,6 +2,7 @@ import type {
   Fixture,
   GroupRow,
   LineupResult,
+  LiveSnapshot,
   ManagedState,
   MatchPrediction,
   OddsRow,
@@ -62,6 +63,14 @@ export const api = {
     post<{ session_id: string; state: ManagedState }>("/manage/second-half", { session_id, mentality }),
   manageGet: (session_id: string) =>
     get<{ session_id: string; state: ManagedState }>(`/manage/session/${session_id}`),
+  manageLiveStart: (session_id: string, starting_xi: string[], mentality: string) =>
+    post<{ session_id: string; live: LiveSnapshot | null }>("/manage/live/start", { session_id, starting_xi, mentality }),
+  manageLiveTick: (session_id: string, minutes = 1) =>
+    post<{ session_id: string; live: LiveSnapshot; state?: ManagedState }>("/manage/live/tick", { session_id, minutes }),
+  manageLiveTactics: (session_id: string, mentality: string) =>
+    post<{ session_id: string; live: LiveSnapshot }>("/manage/live/tactics", { session_id, mentality }),
+  manageLiveSub: (session_id: string, out_id: string, in_id: string) =>
+    post<{ session_id: string; live: LiveSnapshot; message: string }>("/manage/live/sub", { session_id, out_id, in_id }),
   modelDiagnostics: () => get<any>("/model/diagnostics"),
   realityOdds: (results: Record<string, [number, number]>, simulations = 2500) =>
     post<{ simulations: number; fixed_count: number; teams: OddsRow[]; standings: Record<string, any[]> }>(
