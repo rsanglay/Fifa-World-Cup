@@ -56,6 +56,52 @@ That's it — the frontend now talks to the backend and everything works.
 
 ---
 
+## ⚠️ WebSockets: why the backend CANNOT live on Vercel
+
+Manage a Nation's live match is **server-pushed over a WebSocket**
+(`GET /ws/manage/live/{session_id}`): the backend ticks the match engine one
+game-minute every 500ms and streams frames to the browser. This needs a
+**long-lived, stateful server process**, which Vercel's serverless platform
+does not provide:
+
+- Vercel Python functions are request-scoped — they cannot hold a WebSocket
+  open or keep the in-memory match session (`MatchSession`) alive between
+  invocations.
+- Vercel's native WebSocket story is limited to upgrading to a Node.js
+  function or wiring a partner relay (Ably/Pusher) — i.e. rewriting the
+  match engine in Node or adding a paid service. Neither is worth it.
+
+**The supported setup (what this repo's config already does):**
+
+| Piece | Host | Why |
+|---|---|---|
+| Frontend (Vite/React) | Vercel | static assets — perfect fit |
+| Backend (FastAPI + match engine) | **Render** (or Railway / Fly.io) | one persistent uvicorn process serving HTTP **and** WebSocket |
+
+Render/Railway/Fly run uvicorn as a real process, so the same service serves
+`https://…/api/*` **and** `wss://…/ws/manage/live/{id}` with zero extra
+config. The frontend derives the WebSocket URL from `VITE_API_URL`
+automatically (`https://` → `wss://`).
+
+Checklist for the live-match build:
+
+1. `VITE_API_URL` **must** be set on Vercel (no trailing slash). Without it
+   the frontend tries same-origin `/api/ws/…`, which only works in local dev
+   behind the Vite proxy.
+2. Render supports WebSockets out of the box, free tier included. (Mind the
+   free-tier sleep: the first kick-off after idle takes ~30s to wake.)
+3. If you front the backend with your own nginx, allow upgrades:
+   `proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection "upgrade";`
+4. Match sessions are in-memory: run a **single instance** (the default).
+   With multiple replicas a reconnect could land on a server that has never
+   seen the session.
+
+Disconnect behaviour: when the last socket drops the server cancels the tick
+loop but keeps the match session alive for **30 minutes**, so a page refresh
+reconnects into the same minute of the same match.
+
+---
+
 ## 4. (Optional) Supabase for durable career saves
 
 By default the backend keeps career-mode runs in memory (fine on a single
