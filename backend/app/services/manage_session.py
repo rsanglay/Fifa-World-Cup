@@ -88,13 +88,24 @@ def live_tick(session_id: str, minutes: int = 1) -> dict:
 
 
 def live_tactics(session_id: str, mentality=None, tempo=None,
-                 passing=None, pressing=None) -> dict:
+                 passing=None, pressing=None, attack_style=None,
+                 time_wasting=None, penalty_taker=None) -> dict:
     mt = _get(session_id)
     snap = mt.live_tactics(mentality=mentality, tempo=tempo,
-                           passing=passing, pressing=pressing)
+                           passing=passing, pressing=pressing,
+                           attack_style=attack_style, time_wasting=time_wasting,
+                           penalty_taker=penalty_taker)
     if snap is None:
         raise KeyError("No live match in progress.")
     return {"session_id": session_id, "live": snap}
+
+
+def event_respond(session_id: str, choice: str) -> dict:
+    """Answer the pending dressing-room card."""
+    mt = _get(session_id)
+    outcome = mt.respond_event(choice)
+    return {"session_id": session_id, "state": mt.state(),
+            "outcome": outcome or "No event was waiting."}
 
 
 def live_sub(session_id: str, out_id: str, in_id: str) -> dict:

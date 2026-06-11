@@ -1,7 +1,7 @@
 """All HTTP routes for the World Cup 2026 predictor."""
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
 
 from app.core.data import (
     group_stage_with_rest,
@@ -18,15 +18,30 @@ from app.schemas import (
     LiveSubRequest,
     LiveTacticsRequest,
     LiveTickRequest,
+    ManageEventRequest,
     ManagePlayRequest,
     ManageSecondHalfRequest,
     ManageSimRequest,
     ManageStartRequest,
     MatchPredictRequest,
+    MPChatRequest,
+    MPCreateRequest,
+    MPDraftPickRequest,
+    MPJoinRequest,
+    MPPredictRequest,
+    MPSubmitRequest,
+    MPSwitchTeamRequest,
+    MPTokenRequest,
+    PLCreateRequest,
+    PLJoinRequest,
+    PLPredictRequest,
     RealityRequest,
     TournamentSimRequest,
 )
 from app.services import manage_session
+from app.services import mp_live
+from app.services import mp_session
+from app.services import pl_session
 from app.services import simulation as sim
 
 router = APIRouter()
@@ -193,11 +208,23 @@ def manage_live_tick(req: LiveTickRequest):
 
 @router.post("/manage/live/tactics")
 def manage_live_tactics(req: LiveTacticsRequest):
-    """Change any tactical dial mid-match — mentality, tempo, passing, pressing."""
+    """Change any tactical dial mid-match — mentality, tempo, passing, pressing,
+    attack style, time-wasting, penalty taker."""
     try:
         return manage_session.live_tactics(
             req.session_id, mentality=req.mentality, tempo=req.tempo,
-            passing=req.passing, pressing=req.pressing)
+            passing=req.passing, pressing=req.pressing,
+            attack_style=req.attack_style, time_wasting=req.time_wasting,
+            penalty_taker=req.penalty_taker)
+    except KeyError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.post("/manage/event")
+def manage_event(req: ManageEventRequest):
+    """Answer the pending dressing-room / press-conference card."""
+    try:
+        return manage_session.event_respond(req.session_id, req.choice)
     except KeyError as e:
         raise HTTPException(404, str(e))
 
@@ -217,6 +244,148 @@ def manage_get(session_id: str):
         return manage_session.get(session_id)
     except KeyError as e:
         raise HTTPException(404, str(e))
+
+
+# ------------------------------- multiplayer ------------------------------ #
+def _mp(call, *args, **kwargs):
+    """Map engine errors onto HTTP: KeyError -> 404, ValueError -> 400."""
+    try:
+        return call(*args, **kwargs)
+    except KeyError as e:
+        raise HTTPException(404, str(e).strip("'\""))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.post("/mp/create")
+def mp_create(req: MPCreateRequest):
+    """Create a multiplayer tournament room; returns code + your manager token.
+
+    Options: draft=true (nations picked in a randomized draft), deadline_minutes
+    (rounds auto-advance with best-XI auto-picks for no-shows), live_h2h=false
+    (instant-sim grudge matches instead of the live WebSocket experience).
+    """
+    return _mp(mp_session.create, req.name,
+               req.team.upper() if req.team else None, req.seed,
+               draft=req.draft, deadline_minutes=req.deadline_minutes,
+               live_h2h=req.live_h2h)
+
+
+@router.post("/mp/join")
+def mp_join(req: MPJoinRequest):
+    """Join an open room with a display name and a free team."""
+    return _mp(mp_session.join, req.code.upper(), req.name,
+               req.team.upper() if req.team else None)
+
+
+@router.post("/mp/draft-pick")
+def mp_draft_pick(req: MPDraftPickRequest):
+    """Make your pick when you are on the clock in a draft room."""
+    return _mp(mp_session.draft_pick, req.code.upper(), req.token, req.team.upper())
+
+
+@router.post("/mp/predict")
+def mp_predict(req: MPPredictRequest):
+    """Spectator predictions: call results for matches you are not playing in."""
+    return _mp(mp_session.predict, req.code.upper(), req.token, req.picks)
+
+
+@router.post("/mp/chat")
+def mp_chat(req: MPChatRequest):
+    """Post to the room's trash-talk feed."""
+    return _mp(mp_session.chat, req.code.upper(), req.token, req.text)
+
+
+@router.post("/mp/switch-team")
+def mp_switch_team(req: MPSwitchTeamRequest):
+    """Change your team while the room is still in the lobby."""
+    return _mp(mp_session.switch_team, req.code.upper(), req.token, req.team.upper())
+
+
+@router.post("/mp/start")
+def mp_start(req: MPTokenRequest):
+    """Host locks the lobby and kicks off the tournament."""
+    return _mp(mp_session.start, req.code.upper(), req.token)
+
+
+@router.post("/mp/submit")
+def mp_submit(req: MPSubmitRequest):
+    """Submit your XI + mentality; the round plays once everyone is in."""
+    return _mp(mp_session.submit, req.code.upper(), req.token,
+               req.starting_xi, req.mentality)
+
+
+@router.get("/mp/state/{code}")
+def mp_state(code: str, token: str):
+    """Full room state for one manager (poll this)."""
+    return _mp(mp_session.state, code.upper(), token)
+
+
+@router.get("/mp/preview/{code}")
+def mp_preview(code: str):
+    """Public lobby preview — players + taken teams (no token needed)."""
+    return _mp(mp_session.preview, code.upper())
+
+
+@router.websocket("/mp/live/{code}/{match_key}")
+async def mp_live_ws(ws: WebSocket, code: str, match_key: str, token: str):
+    """Live H2H grudge match feed. Managers send commands, everyone gets
+    snapshots. Messages in: {"action": "tactics"|"sub"|"ready", ...}."""
+    try:
+        room = mp_session.get_room(code)
+        room.live_entry(match_key)          # 404 before accepting
+        room._mgr(token)                    # must be a room member
+    except KeyError:
+        await ws.close(code=4004)
+        return
+    await ws.accept()
+    hub = mp_live.hub_for(room, code, match_key)
+    await hub.attach(ws)
+    await hub.send_snapshot()
+    try:
+        while True:
+            msg = await ws.receive_json()
+            await hub.handle(ws, token, msg)
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        pass
+    finally:
+        hub.detach(ws)
+        mp_live.cleanup_hub(code, match_key)
+
+
+# ----------------------------- prediction league --------------------------- #
+@router.post("/pl/create")
+def pl_create(req: PLCreateRequest):
+    """Create a prediction league: friends predict a simulated World Cup."""
+    return _mp(pl_session.create, req.name, req.seed, req.deadline_minutes)
+
+
+@router.post("/pl/join")
+def pl_join(req: PLJoinRequest):
+    return _mp(pl_session.join, req.code.upper(), req.name)
+
+
+@router.post("/pl/start")
+def pl_start(req: MPTokenRequest):
+    return _mp(pl_session.start, req.code.upper(), req.token)
+
+
+@router.post("/pl/predict")
+def pl_predict(req: PLPredictRequest):
+    """Lock in predictions; the round simulates when everyone is in."""
+    return _mp(pl_session.predict, req.code.upper(), req.token, req.picks)
+
+
+@router.get("/pl/state/{code}")
+def pl_state(code: str, token: str):
+    return _mp(pl_session.state, code.upper(), token)
+
+
+@router.get("/pl/preview/{code}")
+def pl_preview(code: str):
+    return _mp(pl_session.preview, code.upper())
 
 
 # --------------------------- continue-from-reality ------------------------ #

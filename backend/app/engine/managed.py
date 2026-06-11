@@ -23,7 +23,10 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
+from app.engine import dressing_room
+from app.engine.condition import SquadCondition
 from app.engine.live import LiveMatch
+from app.engine.stats import StatsTracker
 from app.engine.match import (
     RED_CARD_PROB,
     TeamStrength,
@@ -103,6 +106,13 @@ class ManagedTournament:
         self.achievements: List[str] = []
         self.form: List[str] = []   # 'W'/'D'/'L'
         self.expectation = self._expectation()
+        # Depth systems: per-player condition, injuries, the Golden Boot race
+        # and between-rounds dressing-room events.
+        self.condition = SquadCondition(squad)
+        self.injured: Dict[str, int] = {}          # player_id -> rounds out
+        self.stats = StatsTracker(all_squads, {c: t["name"] for c, t in data.teams.items()})
+        self.pending_event: Optional[dict] = None
+        self.news: List[str] = []
 
     # ---------------------------------------------------------- expectations
     def _expectation(self) -> dict:
@@ -139,7 +149,8 @@ class ManagedTournament:
         sh = TeamStrength(home, self.base_elo[home])
         sa = TeamStrength(away, self.base_elo[away])
         if xi_ids is not None:
-            ld = float(lineup_delta(self.squad, xi_ids).get("elo_delta", 0.0))
+            ld = (float(lineup_delta(self.squad, xi_ids).get("elo_delta", 0.0))
+                  + self.condition.xi_elo_delta(xi_ids))
             if home == self.team:
                 sh.lineup_delta = ld
             elif away == self.team:
@@ -233,6 +244,7 @@ class ManagedTournament:
         mm = self._current_managed_match()
         if mm is None or self.pending is not None:
             return
+        self._discard_pending_event()
         home, away, date, country = mm["home"], mm["away"], mm["date"], mm["country"]
         lh, la = self._base_lambdas(home, away, date, country, xi_ids)
         own, opp = MENTALITY.get(mentality, (1.0, 1.0))
@@ -330,11 +342,17 @@ class ManagedTournament:
         self.last_round_results = [md]
         red_for_us = red if (red and (home == self.team or away == self.team)) else None
         self._record_discipline(p["xi"], red_for_us)
+        won = winner == self.team
+        drew = winner is None
+        self._last_xi = list(p["xi"])
+        self.condition.after_round(p["xi"], None if drew else won)
+        self.stats.add_goal_events(md["events"])
         self._rate_and_track(md)
 
         # Auto-sim the rest of this round, then advance.
         self._finish_round(p["mm"], winner)
         self.pending = None
+        self._maybe_event()
 
     # ------------------------------------------------------ live (interactive)
     def start_live(self, xi_ids, mentality="balanced"):
@@ -342,15 +360,18 @@ class ManagedTournament:
         mm = self._current_managed_match()
         if mm is None or self.live is not None or self.pending is not None:
             return
+        self._discard_pending_event()
         home, away, date, country = mm["home"], mm["away"], mm["date"], mm["country"]
         sh, sa, h_adv = self._strengths(home, away, date, country)
         opp = away if home == self.team else home
         self.live = LiveMatch(
             rng=self.rng, team=self.team, home=home, away=away,
             knockout=mm["knockout"], sh=sh, sa=sa, h_adv=h_adv,
-            squad=[p for p in self.squad if self.suspended.get(p.id, 0) <= 0],
+            squad=[p for p in self.squad
+                   if self.suspended.get(p.id, 0) <= 0 and self.injured.get(p.id, 0) <= 0],
             opp_players=best_xi(self.all_squads.get(opp, [])),
             xi_ids=xi_ids, mentality=mentality, date=date,
+            cond_mult=self.condition.multipliers(),
         )
         self._live_mm = mm
 
@@ -363,11 +384,14 @@ class ManagedTournament:
             self._finalize_live()
         return snap
 
-    def live_tactics(self, mentality=None, tempo=None, passing=None, pressing=None):
+    def live_tactics(self, mentality=None, tempo=None, passing=None, pressing=None,
+                     attack_style=None, time_wasting=None, penalty_taker=None):
         if self.live is None:
             return None
         self.live.set_tactics(mentality=mentality, tempo=tempo,
-                              passing=passing, pressing=pressing)
+                              passing=passing, pressing=pressing,
+                              attack_style=attack_style, time_wasting=time_wasting,
+                              penalty_taker=penalty_taker)
         return self.live.snapshot()
 
     def live_substitute(self, out_id, in_id):
@@ -402,13 +426,33 @@ class ManagedTournament:
         self.last_managed_match = md
         self.last_round_results = [md]
         self._record_discipline_live(lv.yellow_ids, lv.red_ids)
+        # Knocks picked up in the match rule players out of coming round(s).
+        for pid in lv.injured_ids:
+            self.injured[pid] = int(self.rng.integers(1, 3))   # 1-2 rounds
+            p = lv.by_id.get(pid)
+            if p:
+                self.news.append(f"🏥 {p.name} is injured — out for "
+                                 f"{self.injured[pid]} match(es).")
+        won = lv.winner == self.team
+        drew = lv.winner is None
+        self._last_xi = list(lv.played_ids)
+        self.condition.after_round(lv.played_ids, None if drew else won)
+        self.stats.add_goal_events(md["events"])
         self._rate_and_track(md)
         self._finish_round(mm, lv.winner)
         self.live = None
         self._live_mm = None
+        self._maybe_event()
+
+    def _tick_injuries(self):
+        for pid in list(self.injured):
+            self.injured[pid] -= 1
+            if self.injured[pid] <= 0:
+                del self.injured[pid]
 
     def _record_discipline_live(self, yellow_ids, red_ids):
         """Apply the cards actually shown in the live match (no random re-draw)."""
+        self._tick_injuries()
         for pid in list(self.suspended):
             self.suspended[pid] -= 1
             if self.suspended[pid] <= 0:
@@ -471,6 +515,8 @@ class ManagedTournament:
                  + _net_fatigue_adv(home, away, date, self.last_played)
                  + _momentum_adv(home, away, self.momentum))
         res = simulate(sh, sa, self.rng, home_advantage=h_adv, knockout=knockout)
+        self.stats.sample_goals(self.rng, home, res.home_goals)
+        self.stats.sample_goals(self.rng, away, res.away_goals)
         if date:
             self.last_played[home] = date
             self.last_played[away] = date
@@ -491,6 +537,7 @@ class ManagedTournament:
 
     # ------------------------------------------------------- discipline/rating
     def _record_discipline(self, xi_ids, red_minute):
+        self._tick_injuries()
         for pid in list(self.suspended):
             self.suspended[pid] -= 1
             if self.suspended[pid] <= 0:
@@ -553,6 +600,9 @@ class ManagedTournament:
             table, log = play_group(g, codes, strengths, self.data.group_fixtures.get(g, []),
                                     self.rng, {}, self.last_played, self.momentum)
             tables[g] = table
+            for entry in log:
+                self.stats.sample_goals(self.rng, entry["home"], entry["home_goals"])
+                self.stats.sample_goals(self.rng, entry["away"], entry["away_goals"])
             self.match_log.extend(log)
         self.group_tables = tables
         pos = next(i for i, r in enumerate(managed_table) if r.code == self.team)
@@ -586,12 +636,43 @@ class ManagedTournament:
             slot[f"T{i}"] = r.code
         return slot
 
+    # ------------------------------------------------------- dressing room
+    def _maybe_event(self):
+        """Roll for a between-rounds dressing-room card (never when done)."""
+        if self.phase == "done" or not self.alive:
+            self.pending_event = None
+            return
+        nf = self._next_fixture()
+        names = {c: t["name"] for c, t in self.data.teams.items()}
+        self.pending_event = dressing_room.maybe_generate(
+            self.rng, self.squad, list(getattr(self, "_last_xi", [])), self.condition,
+            self.form, names, nf["opponent"] if nf else None)
+
+    def respond_event(self, choice: str) -> Optional[str]:
+        if not self.pending_event:
+            return None
+        outcome = dressing_room.apply(self.pending_event, choice, self.condition,
+                                      self.momentum, self.team, [])
+        self.news.append(f"🎙️ {outcome}")
+        self.pending_event = None
+        return outcome
+
+    def _discard_pending_event(self):
+        """Kicking off with an unanswered card = “no comment” (tiny morale dip)."""
+        if self.pending_event:
+            self.condition.nudge_all_morale(-1)
+            self.news.append("🎙️ You ducked the press. The squad shrugged.")
+            self.pending_event = None
+
     # ----------------------------------------------------------------- output
     def _squad_payload(self):
         return [{
             "id": p.id, "name": p.name, "position": p.position, "number": p.number,
             "rating": p.rating, "club": p.club, "photo_url": getattr(p, "photo_url", ""),
             "suspended": self.suspended.get(p.id, 0) > 0, "yellows": self.yellows.get(p.id, 0),
+            "injured": self.injured.get(p.id, 0) > 0,
+            "injured_rounds": self.injured.get(p.id, 0),
+            **self.condition.payload(p.id),
         } for p in self.squad]
 
     def _next_fixture(self):
@@ -630,6 +711,10 @@ class ManagedTournament:
             "expectation": self.expectation, "achievements": self.achievements,
             "ratings": self.ratings, "avg_rating": round(sum(self.ratings) / len(self.ratings), 1) if self.ratings else None,
             "form": self.form[-5:], "review": getattr(self, "review", None),
+            "top_scorers": self.stats.top(10),
+            "team_scorers": self.stats.top(5, team=self.team),
+            "pending_event": self.pending_event,
+            "news": self.news[-6:],
         }
 
 

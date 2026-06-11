@@ -66,6 +66,14 @@ class LiveTacticsRequest(BaseModel):
     tempo: Optional[str] = None          # slow | balanced | fast
     passing: Optional[str] = None        # short | mixed | direct
     pressing: Optional[str] = None       # low_block | mid | high
+    attack_style: Optional[str] = None   # balanced | target_man | false_nine
+    time_wasting: Optional[bool] = None
+    penalty_taker: Optional[str] = None  # player id ("" clears)
+
+
+class ManageEventRequest(BaseModel):
+    session_id: str
+    choice: str
 
 
 class LiveSubRequest(BaseModel):
@@ -78,3 +86,72 @@ class RealityRequest(BaseModel):
     # match_no (as string key) -> [home_goals, away_goals]
     results: dict = Field(default_factory=dict)
     simulations: int = 2000
+
+
+# ------------------------------ multiplayer -------------------------------- #
+class MPCreateRequest(BaseModel):
+    name: str = Field(..., description="Your display name")
+    team: Optional[str] = Field(None, description="3-letter team code (omit in draft rooms)")
+    seed: Optional[int] = None
+    draft: bool = False
+    deadline_minutes: int = Field(0, ge=0, le=10080)  # up to a week per round
+    live_h2h: bool = True
+
+
+class MPJoinRequest(BaseModel):
+    code: str = Field(..., description="5-character room code")
+    name: str
+    team: Optional[str] = None
+
+
+class MPTokenRequest(BaseModel):
+    code: str
+    token: str
+
+
+class MPSwitchTeamRequest(BaseModel):
+    code: str
+    token: str
+    team: str
+
+
+class MPSubmitRequest(BaseModel):
+    code: str
+    token: str
+    starting_xi: List[str] = Field(default_factory=list)
+    mentality: str = "balanced"
+
+
+class MPDraftPickRequest(BaseModel):
+    code: str
+    token: str
+    team: str
+
+
+class MPPredictRequest(BaseModel):
+    code: str
+    token: str
+    picks: dict = Field(default_factory=dict)   # match_key -> "H"|"D"|"A"
+
+
+class MPChatRequest(BaseModel):
+    code: str
+    token: str
+    text: str
+
+
+class PLCreateRequest(BaseModel):
+    name: str
+    seed: Optional[int] = None
+    deadline_minutes: int = 0
+
+
+class PLJoinRequest(BaseModel):
+    code: str
+    name: str
+
+
+class PLPredictRequest(BaseModel):
+    code: str
+    token: str
+    picks: dict = Field(default_factory=dict)   # match_key -> {"result", "margin"?}

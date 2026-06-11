@@ -50,6 +50,22 @@ LATE_SURGE_FROM = 75
 LATE_SURGE = 1.10
 MENTALITY = {"attacking": (1.20, 1.14), "balanced": (1.0, 1.0), "defensive": (0.84, 0.80)}
 SCORE_W = {"FWD": 6.0, "MID": 3.0, "DEF": 1.0, "GK": 0.02}
+ASSIST_W = {"FWD": 2.5, "MID": 4.0, "DEF": 1.2, "GK": 0.05}
+ASSIST_PROB = 0.72
+# Injuries: a knock leaves the player limping (stamina slashed -> effective
+# rating drops via the fatigue slope). The manager decides: sub him off or
+# gamble on heart. Carried knocks rule players out of following rounds.
+INJURY_PROB_MATCH = 0.09          # per team, per match
+INJURY_STAMINA = 22.0             # limping legs
+# Attack style: reshapes WHO scores; small rate nudge only when the style is
+# coherent with the passing instruction (route-one to the big man / overloads
+# through midfield for the false nine).
+ATTACK_STYLE = ("balanced", "target_man", "false_nine")
+STYLE_RATE_BONUS = 1.04
+STYLE_SCORER_BOOST = 1.8
+# Time-wasting (game management): kills the game at both ends, saves legs,
+# and referees increasingly punish it with stoppage-time pressure late on.
+WASTE_OWN, WASTE_OPP, WASTE_DRAIN = 0.86, 0.90, 0.94
 
 # --- Tactical dials (compose multiplicatively with mentality) ---------------
 # Each setting: (own-rate mult, opponent-rate mult, stamina-drain mult).
@@ -87,7 +103,7 @@ class LiveMatch:
     """One in-progress managed match, advanced a minute at a time."""
 
     def __init__(self, rng, team, home, away, knockout, sh, sa, h_adv,
-                 squad, opp_players, xi_ids, mentality, date):
+                 squad, opp_players, xi_ids, mentality, date, cond_mult=None):
         self.rng = rng
         self.team = team
         self.home, self.away = home, away
@@ -98,20 +114,28 @@ class LiveMatch:
         self.by_id = {p.id: p for p in squad}
         self.opp_players = opp_players
         self.date = date
+        # Per-player condition multipliers (sharpness/fatigue/morale), 1.0 = nominal.
+        self.cond_mult: Dict[str, float] = cond_mult or {}
 
         # Suspended players are excluded from `squad`; silently drop any of
         # their ids from the requested XI rather than crashing mid-career.
         self.xi: List[str] = [i for i in xi_ids if i in self.by_id]
         self.bench: List[str] = [p.id for p in squad if p.id not in self.xi]
+        self.played_ids: List[str] = list(self.xi)   # starters + subs used
         self.stamina: Dict[str, float] = {p.id: 100.0 for p in squad}
         self.mentality = mentality
         self.tempo = "balanced"
         self.passing = "mixed"
         self.pressing = "mid"
+        self.attack_style = "balanced"
+        self.time_wasting = False
+        self.penalty_taker_id: Optional[str] = None
+        self.injured_ids: List[str] = []           # knocks picked up this match
         self.opp_mentality = "balanced"
         self.opp_tempo = "balanced"
         self.opp_passing = "mixed"
         self.opp_pressing = "mid"
+        self._opp_setup = ("balanced", "balanced", "mixed", "mid")
 
         self.minute = 0
         self.hg = 0
@@ -141,7 +165,7 @@ class LiveMatch:
         for p in players:
             fatigue = max(0.0, FATIGUE_KNEE - self.stamina[p.id]) * FATIGUE_SLOPE
             w = POS_WEIGHT.get(p.position, 1.0)
-            tot += (p.rating - fatigue) * w
+            tot += (p.rating * self.cond_mult.get(p.id, 1.0) - fatigue) * w
             wt += w
         score = tot / wt
         delta = (score - optimal_score(self.squad)) * RATING_TO_ELO
@@ -172,9 +196,18 @@ class LiveMatch:
         # Net clamp: mentality x dials may never move either side beyond ±25%
         # of the Elo-derived baseline — archetypes stay expressive, the
         # tournament-level goal calibration stays intact.
+        # Coherent attack styles earn a small rate nudge (route-one with direct
+        # passing; false-nine overloads with a short game).
+        if ((self.attack_style == "target_man" and self.passing == "direct")
+                or (self.attack_style == "false_nine" and self.passing == "short")):
+            l_us *= STYLE_RATE_BONUS
         lo, hi = NET_CLAMP
         l_us = min(max(l_us, base_us * lo), base_us * hi)
         l_opp = min(max(l_opp, base_opp * lo), base_opp * hi)
+        # Time-wasting stacks after the clamp: it is game management, not setup.
+        if self.time_wasting:
+            l_us *= WASTE_OWN
+            l_opp *= WASTE_OPP
         # Fatigue collapse stacks AFTER the clamp (it is game state, not setup):
         # a high press on tired legs progressively opens space in behind.
         if self.pressing == "high":
@@ -223,13 +256,26 @@ class LiveMatch:
             # Protect the lead: park the bus.
             self.opp_mentality, self.opp_tempo = "defensive", "slow"
             self.opp_passing, self.opp_pressing = "direct", "low_block"
+            detail = "park the bus to protect the lead"
         elif self.minute >= 60 and diff < 0:
             # Chase the game: throw everything at it.
             self.opp_mentality, self.opp_tempo = "attacking", "fast"
             self.opp_passing, self.opp_pressing = "direct", "high"
+            detail = "go all-out attack to chase the game"
         else:
             self.opp_mentality, self.opp_tempo = "balanced", "balanced"
             self.opp_passing, self.opp_pressing = "mixed", "mid"
+            detail = "reset to a balanced shape"
+        setup = (self.opp_mentality, self.opp_tempo, self.opp_passing, self.opp_pressing)
+        if setup != self._opp_setup:
+            # Make the bench react VISIBLY — the manager can counter it.
+            self._opp_setup = setup
+            opp_side = self.away if self.us_home else self.home
+            self._emit({"type": "tactic", "minute": self.minute, "team": opp_side,
+                        "scorer": "", "scorer_id": "", "position": "",
+                        "assist": None, "detail": detail,
+                        "mentality": self.opp_mentality, "tempo": self.opp_tempo,
+                        "passing": self.opp_passing, "pressing": self.opp_pressing})
 
     # --------------------------------------------------------------- events
     def _on_pitch(self, ours: bool):
@@ -237,11 +283,15 @@ class LiveMatch:
             return [self.by_id[i] for i in self.xi if i in self.by_id]
         return self.opp_players
 
-    def _pick(self, players, attacking=True):
+    def _pick(self, players, attacking=True, ours=False):
         if not players:
             return None
         if attacking:
             w = [SCORE_W.get(p.position, 1.0) * (p.rating / 80.0) for p in players]
+            if ours and self.attack_style != "balanced":
+                boosted = "FWD" if self.attack_style == "target_man" else "MID"
+                w = [x * (STYLE_SCORER_BOOST if p.position == boosted else 1.0)
+                     for x, p in zip(w, players)]
         else:
             w = [3.0 if p.position == "DEF" else 1.5 if p.position == "MID" else 0.7
                  for p in players]
@@ -267,18 +317,38 @@ class LiveMatch:
 
     def _goal(self, our_side: bool) -> dict:
         side = self.team if our_side else (self.away if self.us_home else self.home)
-        scorer = self._pick(self._on_pitch(our_side), attacking=True)
+        on_pitch = self._on_pitch(our_side)
+        source = self._goal_source()
+        scorer = None
+        if source == "penalty" and our_side and self.penalty_taker_id in self.xi:
+            scorer = self.by_id.get(self.penalty_taker_id)
+        if scorer is None:
+            scorer = self._pick(on_pitch, attacking=True, ours=our_side)
         if (our_side and self.us_home) or (not our_side and not self.us_home):
             self.hg += 1
         else:
             self.ag += 1
-        return self._emit({
+        ev = {
             "type": "goal", "minute": self.minute, "team": side,
             "scorer": scorer.name if scorer else side,
             "scorer_id": scorer.id if scorer else "",
             "position": scorer.position if scorer else "", "assist": None,
-            "source": self._goal_source(),
-        })
+            "source": source,
+        }
+        # Credit an assist for open-play goals (set pieces and pens excluded).
+        if source == "open" and scorer and self.rng.random() < ASSIST_PROB:
+            mates = [p for p in on_pitch if p.id != scorer.id]
+            if mates:
+                w = [ASSIST_W.get(p.position, 1.0) * (p.rating / 80.0) for p in mates]
+                tot = sum(w)
+                r = self.rng.random() * tot
+                for p, x in zip(mates, w):
+                    r -= x
+                    if r <= 0:
+                        ev["assist"], ev["assist_id"] = p.name, p.id
+                        ev["assist_position"] = p.position
+                        break
+        return self._emit(ev)
 
     def _chance(self, our_side: bool) -> dict:
         side = self.team if our_side else (self.away if self.us_home else self.home)
@@ -329,6 +399,28 @@ class LiveMatch:
                                    "assist": None})
         return None
 
+    def _injury_roll(self) -> None:
+        """One of ours may pick up a knock: he limps on until YOU decide.
+
+        The injured player's stamina is slashed (his effective rating drops
+        through the fatigue slope), so the manager faces the classic call —
+        burn a substitution or gamble on heart. The knock also carries into
+        the next round(s) via ManagedTournament.injured.
+        """
+        if self.rng.random() >= INJURY_PROB_MATCH / 90.0:
+            return
+        candidates = [self.by_id[i] for i in self.xi
+                      if i in self.by_id and i not in self.injured_ids]
+        if not candidates:
+            return
+        p = candidates[int(self.rng.random() * len(candidates))]
+        self.injured_ids.append(p.id)
+        self.stamina[p.id] = min(self.stamina[p.id], INJURY_STAMINA)
+        self._emit({"type": "injury", "minute": self.minute, "team": self.team,
+                    "scorer": p.name, "scorer_id": p.id, "position": p.position,
+                    "assist": None,
+                    "detail": "is down injured — sub him or gamble on heart"})
+
     def _straight_reds(self) -> None:
         if self.our_red_minute is None and self.rng.random() < RED_CARD_PROB / 90.0:
             p = self._pick(self._on_pitch(True), attacking=False)
@@ -355,7 +447,8 @@ class LiveMatch:
         self.mentality = mentality
         return True
 
-    def set_tactics(self, mentality=None, tempo=None, passing=None, pressing=None) -> bool:
+    def set_tactics(self, mentality=None, tempo=None, passing=None, pressing=None,
+                    attack_style=None, time_wasting=None, penalty_taker=None) -> bool:
         """Update any subset of the tactical dials; unknown values are ignored."""
         changed = False
         if mentality in MENTALITY:
@@ -370,6 +463,19 @@ class LiveMatch:
         if pressing in PRESSING:
             self.pressing = pressing
             changed = True
+        if attack_style in ATTACK_STYLE:
+            self.attack_style = attack_style
+            changed = True
+        if time_wasting is not None:
+            self.time_wasting = bool(time_wasting)
+            changed = True
+        if penalty_taker is not None:
+            if penalty_taker in self.by_id:
+                self.penalty_taker_id = penalty_taker
+                changed = True
+            elif penalty_taker == "":
+                self.penalty_taker_id = None
+                changed = True
         return changed
 
     def substitute(self, out_id: str, in_id: str) -> tuple[bool, str]:
@@ -400,6 +506,7 @@ class LiveMatch:
             return False, "You must keep exactly one goalkeeper."
         self.xi = nxt
         self.bench = [i for i in self.bench if i != in_id]
+        self.played_ids.append(in_id)
         self.subs_made += 1
         self.subs.append({"minute": self.minute, "out_id": out_id, "in_id": in_id,
                           "out": out_p.name, "in": in_p.name})
@@ -419,9 +526,11 @@ class LiveMatch:
             steps += 1
             drain = (STAMINA_DRAIN.get(self.mentality, 0.57)
                      * TEMPO.get(self.tempo, (1, 1, 1))[2]
-                     * PRESSING.get(self.pressing, (1, 1, 1))[2])
+                     * PRESSING.get(self.pressing, (1, 1, 1))[2]
+                     * (WASTE_DRAIN if self.time_wasting else 1.0))
             for pid in self.xi:
                 self.stamina[pid] = max(0.0, self.stamina[pid] - drain)
+            self._injury_roll()
             self._opp_ai()
             p_us, p_opp = self._minute_lambdas()
             if self.rng.random() < p_us:
@@ -499,6 +608,9 @@ class LiveMatch:
             "subs_made": self.subs_made, "subs_remaining": SUBS_LIMIT - self.subs_made,
             "subs": self.subs, "mentality": self.mentality,
             "tempo": self.tempo, "passing": self.passing, "pressing": self.pressing,
+            "attack_style": self.attack_style, "time_wasting": self.time_wasting,
+            "penalty_taker": self.penalty_taker_id,
+            "injured": list(self.injured_ids),
             "opp_mentality": self.opp_mentality,
             "opp_tempo": self.opp_tempo, "opp_passing": self.opp_passing,
             "opp_pressing": self.opp_pressing,
