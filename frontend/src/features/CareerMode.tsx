@@ -58,8 +58,9 @@ export default function CareerMode({ team, onExit, resumeSession }: { team: stri
       careerStore.setActive({ sessionId: r.session_id, team, teamName: r.state.team_name });
       if (r.state.live && !r.state.live.done) {
         // A live match is in progress: reopen the WebSocket match session.
+        // (Skip on an old backend mid-deploy — no ws_path means no WS route.)
         api.manageLiveStart(r.session_id, [], "balanced").then((res) => {
-          if (res.session_id) {
+          if (res.session_id && res.ws_path) {
             setMatchSid(res.session_id);
             setInitialFrame((res as any).frame || null);
             setUi("live");
@@ -111,7 +112,13 @@ export default function CareerMode({ team, onExit, resumeSession }: { team: stri
     setSoftError(null);
     api.manageLiveStart(sid, xiClean, mentality)
       .then((r) => {
-        if (r.session_id) {
+        // Version-skew guard: an old backend (mid-deploy) answers without the
+        // WebSocket session — fail with a clear message instead of letting
+        // the socket spin against a route that does not exist yet.
+        if (r.session_id && !r.ws_path) {
+          setSoftError("The match server is running an older version (deploy in progress). Try again in a couple of minutes.");
+          setUi("lineup");
+        } else if (r.session_id) {
           setMatchSid(r.session_id);
           setInitialFrame((r as any).frame || null);
           setUi("live");
