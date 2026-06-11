@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from "react";
+import Confetti from "./Confetti";
 import type { MatchEvent } from "../types";
 
 /* Football-Manager-classic style 2D match view.
  *
  * Pure renderer: the simulation lives on the server (minute ticks); this
  * component interpolates 22 dots + a ball between formation anchors and
- * event-driven ball runs (goal -> goal mouth, chance -> box edge). The same
- * headless-sim / viewer split FM itself uses — nothing rendered here can
- * change the result.
+ * event-driven sequences — penalties and free kicks stage the ball at the
+ * spot before the outcome, goals trigger a corner-flag celebration (and
+ * confetti when it's YOUR goal). The same headless-sim / viewer split FM
+ * itself uses — nothing rendered here can change the result.
  *
  * Coordinates: x 0..100 (home attacks left -> right), y 0..100.
  */
@@ -15,9 +17,11 @@ import type { MatchEvent } from "../types";
 type Shape = { d: number; m: number; f: number };
 
 interface Dot { x: number; y: number; tx: number; ty: number }
+interface Flash { id: number; label: string; confetti: boolean }
 
 const LINE_X_HOME = { GK: 4.5, DEF: 20, MID: 42, FWD: 64 };
 const PULL = { GK: 0.02, DEF: 0.1, MID: 0.2, FWD: 0.28 };
+const CELEBRATE_MS = 2400;
 
 function anchors(shape: Shape, home: boolean): { x: number; y: number; line: keyof typeof PULL }[] {
   const rows: [keyof typeof LINE_X_HOME, number][] = [
@@ -53,8 +57,15 @@ export default function Pitch2D({
   const awayDots = useRef<Dot[]>([]);
   const wanderAt = useRef(0);
   const eventKey = useRef("");
-  const [flash, setFlash] = useState<string | null>(null);
+  const celebrate = useRef<{ until: number; home: boolean } | null>(null);
+  const staged = useRef<number[]>([]);
+  const [flash, setFlash] = useState<Flash | null>(null);
   const [, force] = useState(0);
+
+  const later = (fn: () => void, ms: number) => {
+    staged.current.push(window.setTimeout(fn, ms));
+  };
+  useEffect(() => () => staged.current.forEach(window.clearTimeout), []);
 
   // (Re)build dot sets when shapes change (subs can reshape the team).
   useEffect(() => {
@@ -64,31 +75,76 @@ export default function Pitch2D({
     awayDots.current = anchors(awayShape, false).map((a) => ({ x: a.x, y: a.y, tx: a.x, ty: a.y }));
   }, [awayShape.d, awayShape.m, awayShape.f]); // eslint-disable-line
 
-  // Event-driven ball runs.
+  // Event-driven sequences: goals, penalties, free kicks, cards.
   useEffect(() => {
     if (!lastEvent) return;
     const k = `${lastEvent.minute}-${lastEvent.type}-${lastEvent.scorer_id}-${lastEvent.team}`;
     if (k === eventKey.current) return;
     eventKey.current = k;
+
     const b = ball.current;
-    if (lastEvent.type === "goal" || lastEvent.type === "chance") {
-      // Home attacks right (x=100), away attacks left (x=0); the parent tags
-      // each event with __home so the renderer needs no team-code knowledge.
-      const evHome = isHomeTeam(lastEvent);
-      b.tx = lastEvent.type === "goal" ? (evHome ? 97 : 3) : evHome ? 86 : 14;
-      b.ty = 40 + Math.random() * 20;
-      if (lastEvent.type === "goal") {
-        setFlash(`⚽ GOAL — ${lastEvent.scorer}`);
-        window.setTimeout(() => setFlash(null), 1800);
-      } else if (lastEvent.outcome) {
-        setFlash(null);
+    const evHome = isHomeTeam(lastEvent);
+    const ours = evHome === (ourSide === "home");
+    const goalX = evHome ? 97 : 3;
+    const spotX = evHome ? 88 : 12;
+    const fkX = evHome ? 72 + Math.random() * 8 : 28 - Math.random() * 8;
+    const show = (label: string, confetti = false, ttl = 1800) => {
+      const id = performance.now();
+      setFlash({ id, label, confetti });
+      later(() => setFlash((f) => (f?.id === id ? null : f)), ttl);
+    };
+    const freeze = (ms: number) => { wanderAt.current = performance.now() + ms; };
+
+    if (lastEvent.type === "goal") {
+      const src = lastEvent.source;
+      const bury = () => {
+        b.tx = goalX; b.ty = 46 + Math.random() * 8;
+        celebrate.current = { until: performance.now() + CELEBRATE_MS, home: evHome };
+        show(
+          src === "penalty" ? `🎯 PENALTY GOAL — ${lastEvent.scorer}`
+            : src === "freekick" ? `🚀 FREE KICK GOAL — ${lastEvent.scorer}`
+            : `⚽ GOAL — ${lastEvent.scorer}`,
+          ours, CELEBRATE_MS,
+        );
+        freeze(CELEBRATE_MS + 300);
+      };
+      if (src === "penalty" || src === "freekick") {
+        b.tx = src === "penalty" ? spotX : fkX;
+        b.ty = src === "penalty" ? 50 : 25 + Math.random() * 50;
+        show(src === "penalty" ? "🎯 Penalty…" : `🚀 Free kick — ${lastEvent.scorer}…`, false, 1000);
+        freeze(3600);
+        later(bury, 1000);
+      } else {
+        bury();
       }
-      wanderAt.current = performance.now() + 1600;
+    } else if (lastEvent.type === "penalty_miss") {
+      b.tx = spotX; b.ty = 50;
+      show("🎯 Penalty…", false, 1000);
+      freeze(2800);
+      later(() => {
+        if (lastEvent.outcome === "saved") {
+          b.tx = evHome ? 99 : 1; b.ty = 50; // into the keeper's arms
+          show(`🧤 SAVED! ${lastEvent.scorer} is denied`, false, 1700);
+        } else {
+          b.tx = evHome ? 99 : 1; b.ty = Math.random() < 0.5 ? 16 : 84; // wide
+          show(`❌ ${lastEvent.scorer} misses the penalty!`, false, 1700);
+        }
+      }, 1000);
+    } else if (lastEvent.type === "chance") {
+      if (lastEvent.set_piece === "freekick") {
+        b.tx = fkX; b.ty = 25 + Math.random() * 50;
+        show(`🚀 Free kick — ${lastEvent.scorer}`, false, 1200);
+        freeze(2000);
+        later(() => { b.tx = evHome ? 95 : 5; b.ty = 35 + Math.random() * 30; }, 900);
+      } else {
+        b.tx = evHome ? 86 : 14;
+        b.ty = 40 + Math.random() * 20;
+        freeze(1600);
+      }
     } else if (lastEvent.type === "red" || lastEvent.type === "yellow") {
-      setFlash(`${lastEvent.type === "red" ? "🟥" : "🟨"} ${lastEvent.scorer}`);
-      window.setTimeout(() => setFlash(null), 1400);
+      show(`${lastEvent.type === "red" ? "🟥" : "🟨"} ${lastEvent.scorer}`, false, 1400);
     }
-  }, [lastEvent, ourSide]);
+  }, [lastEvent, ourSide]); // eslint-disable-line
 
   // rAF animation loop — lerp dots toward targets, wander the ball.
   useEffect(() => {
@@ -100,7 +156,6 @@ export default function Pitch2D({
       if (running) {
         const b = ball.current;
         if (now > wanderAt.current) {
-          // Pick a new loose-play target, biased by possession.
           const bias = possession ?? 0.5;
           const cx = 28 + 44 * (Math.random() * 0.5 + bias * 0.5);
           b.tx = Math.max(6, Math.min(94, cx + (Math.random() - 0.5) * 26));
@@ -110,19 +165,30 @@ export default function Pitch2D({
         b.x += (b.tx - b.x) * Math.min(1, dt * 3.2);
         b.y += (b.ty - b.y) * Math.min(1, dt * 3.2);
 
+        const celeb = celebrate.current && now < celebrate.current.until ? celebrate.current : null;
+        if (celebrate.current && !celeb) celebrate.current = null;
+
         const move = (dots: Dot[], home: boolean, shape: Shape) => {
           const anc = anchors(shape, home);
-          // Block slides with the ball: defending deeper / attacking higher.
           const slide = (b.x - 50) * 0.16;
+          const partying = celeb !== null && celeb.home === home;
+          const cornerX = celeb?.home ? 88 : 12;
           dots.forEach((d, i) => {
             const a = anc[i];
             if (!a) return;
-            const pull = PULL[a.line];
-            const wob = Math.sin(now / 700 + i * 1.7) * 1.6;
-            d.tx = a.x + slide + (b.x - a.x) * pull;
-            d.ty = a.y + (b.y - a.y) * pull * 1.5 + wob;
-            d.x += (d.tx - d.x) * Math.min(1, dt * 2.4);
-            d.y += (d.ty - d.y) * Math.min(1, dt * 2.4);
+            if (partying && a.line !== "GK") {
+              // Mob the corner flag.
+              d.tx = cornerX + ((i % 4) - 1.5) * 2.6;
+              d.ty = 10 + Math.floor(i / 4) * 4 + Math.sin(now / 160 + i) * 1.8;
+            } else {
+              const pull = PULL[a.line];
+              const wob = Math.sin(now / 700 + i * 1.7) * 1.6;
+              d.tx = a.x + slide + (b.x - a.x) * pull;
+              d.ty = a.y + (b.y - a.y) * pull * 1.5 + wob;
+            }
+            const speed = partying ? 3.4 : 2.4;
+            d.x += (d.tx - d.x) * Math.min(1, dt * speed);
+            d.y += (d.ty - d.y) * Math.min(1, dt * speed);
           });
         };
         move(homeDots.current, true, homeShape);
@@ -165,11 +231,15 @@ export default function Pitch2D({
       <span className="absolute h-[2%] w-[1.25%] min-h-[6px] min-w-[6px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-lg ring-1 ring-black/50"
         style={{ left: `${ball.current.x}%`, top: `${ball.current.y}%` }} />
 
-      {/* goal / card flash */}
+      {/* confetti for OUR goals */}
+      {flash?.confetti && <Confetti key={flash.id} pieces={140} />}
+
+      {/* event banner */}
       {flash && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/35 backdrop-blur-[1px]">
-          <div className="animate-pulse rounded-xl bg-ink/85 px-5 py-2 font-display text-2xl tracking-wide text-gold shadow-xl">
-            {flash}
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <div className={`rounded-xl px-5 py-2 font-display text-2xl tracking-wide shadow-xl ${
+            flash.confetti ? "animate-bounce bg-gold text-ink" : "animate-pulse bg-ink/85 text-gold"}`}>
+            {flash.label}
           </div>
         </div>
       )}

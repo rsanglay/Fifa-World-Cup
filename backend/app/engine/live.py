@@ -30,6 +30,13 @@ from app.engine.squad import FORMATIONS, POS_WEIGHT, RATING_TO_ELO, optimal_scor
 SUBS_LIMIT = 5
 YELLOW_PROB_MATCH = 0.16          # per player, per match (matches managed.py)
 CHANCE_RATE = 2.1                 # non-goal chances per expected goal
+# How a goal came about (real-WC-ish split: ~10% pens, ~5% direct free kicks).
+# Sources decorate goals AFTER the Poisson draw — scoring rates are untouched.
+PENALTY_GOAL_SHARE = 0.10
+FREEKICK_GOAL_SHARE = 0.06
+# A penalty is won but NOT scored (saved/missed): pure drama, never a goal.
+PEN_MISS_PER_MIN = 0.0009         # ≈ 0.08 per team per match
+FREEKICK_CHANCE_SHARE = 0.18      # share of chances that are free kicks
 # Stamina drain per minute by mentality (attacking football costs more legs).
 STAMINA_DRAIN = {"defensive": 0.50, "balanced": 0.57, "attacking": 0.68}
 # Effective rating starts dropping below this stamina, this many pts per unit.
@@ -168,6 +175,14 @@ class LiveMatch:
         self.events.append(ev)
         return ev
 
+    def _goal_source(self) -> str:
+        r = self.rng.random()
+        if r < PENALTY_GOAL_SHARE:
+            return "penalty"
+        if r < PENALTY_GOAL_SHARE + FREEKICK_GOAL_SHARE:
+            return "freekick"
+        return "open"
+
     def _goal(self, our_side: bool) -> dict:
         side = self.team if our_side else (self.away if self.us_home else self.home)
         scorer = self._pick(self._on_pitch(our_side), attacking=True)
@@ -180,18 +195,34 @@ class LiveMatch:
             "scorer": scorer.name if scorer else side,
             "scorer_id": scorer.id if scorer else "",
             "position": scorer.position if scorer else "", "assist": None,
+            "source": self._goal_source(),
         })
 
     def _chance(self, our_side: bool) -> dict:
         side = self.team if our_side else (self.away if self.us_home else self.home)
         player = self._pick(self._on_pitch(our_side), attacking=True)
         outcome = ["saved", "missed", "woodwork"][int(self.rng.random() * 3) % 3]
-        return self._emit({
+        ev = {
             "type": "chance", "minute": self.minute, "team": side,
             "scorer": player.name if player else side,
             "scorer_id": player.id if player else "",
             "position": player.position if player else "",
             "assist": None, "outcome": outcome,
+        }
+        if self.rng.random() < FREEKICK_CHANCE_SHARE:
+            ev["set_piece"] = "freekick"
+        return self._emit(ev)
+
+    def _penalty_miss(self, our_side: bool) -> dict:
+        """A penalty is won but squandered — drama only, the score never moves."""
+        side = self.team if our_side else (self.away if self.us_home else self.home)
+        player = self._pick(self._on_pitch(our_side), attacking=True)
+        return self._emit({
+            "type": "penalty_miss", "minute": self.minute, "team": side,
+            "scorer": player.name if player else side,
+            "scorer_id": player.id if player else "",
+            "position": player.position if player else "", "assist": None,
+            "outcome": "saved" if self.rng.random() < 0.72 else "missed",
         })
 
     def _our_card(self) -> Optional[dict]:
@@ -296,10 +327,14 @@ class LiveMatch:
                 self._goal(True)
             elif self.rng.random() < p_us * CHANCE_RATE:
                 self._chance(True)
+            elif self.rng.random() < PEN_MISS_PER_MIN:
+                self._penalty_miss(True)
             if self.rng.random() < p_opp:
                 self._goal(False)
             elif self.rng.random() < p_opp * CHANCE_RATE:
                 self._chance(False)
+            elif self.rng.random() < PEN_MISS_PER_MIN:
+                self._penalty_miss(False)
             self._our_card()
             self._straight_reds()
 

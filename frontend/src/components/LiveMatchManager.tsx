@@ -230,8 +230,10 @@ function wonPens(l: LiveSnapshot): boolean {
 }
 function icon(e: MatchEvent): string {
   switch (e.type) {
-    case "goal": return "⚽";
-    case "chance": return e.outcome === "saved" ? "🧤" : e.outcome === "woodwork" ? "🥅" : "❌";
+    case "goal": return e.source === "penalty" ? "🎯" : e.source === "freekick" ? "🚀" : "⚽";
+    case "chance": return e.set_piece === "freekick" ? "🚀"
+      : e.outcome === "saved" ? "🧤" : e.outcome === "woodwork" ? "🥅" : "❌";
+    case "penalty_miss": return e.outcome === "saved" ? "🧤" : "❌";
     case "yellow": return "🟨";
     case "red": return "🟥";
     case "sub": return "🔁";
@@ -242,11 +244,19 @@ function icon(e: MatchEvent): string {
 function text(e: MatchEvent, names: Record<string, string>): string {
   const t = names[e.team] || e.team;
   switch (e.type) {
-    case "goal": return `GOAL! ${e.scorer} (${t})`;
-    case "chance":
-      return e.outcome === "saved" ? `Big chance — ${e.scorer}'s shot is saved!`
-        : e.outcome === "woodwork" ? `${e.scorer} rattles the woodwork!`
-        : `${e.scorer} fires wide.`;
+    case "goal":
+      return e.source === "penalty" ? `PENALTY GOAL! ${e.scorer} converts from the spot (${t})`
+        : e.source === "freekick" ? `FREE KICK GOAL! ${e.scorer} curls it in (${t})`
+        : `GOAL! ${e.scorer} (${t})`;
+    case "chance": {
+      const fk = e.set_piece === "freekick" ? "free kick " : "";
+      return e.outcome === "saved" ? `${e.scorer}'s ${fk}effort is saved!`
+        : e.outcome === "woodwork" ? `${e.scorer}'s ${fk}strike rattles the woodwork!`
+        : `${e.scorer} sends the ${fk}shot wide.`;
+    }
+    case "penalty_miss":
+      return e.outcome === "saved" ? `PENALTY SAVED! ${e.scorer} is denied from the spot!`
+        : `PENALTY MISSED! ${e.scorer} puts it wide!`;
     case "yellow": return `${e.scorer} is booked.`;
     case "red": return e.second_yellow ? `${e.scorer} — second yellow, off!` : `RED CARD — ${e.scorer} (${t})`;
     case "sub": return `Substitution: ${e.scorer} on for ${e.assist}.`;

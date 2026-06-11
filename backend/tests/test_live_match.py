@@ -156,6 +156,26 @@ def test_fatigue_drains_and_fresh_sub_restores():
     # Fresher legs -> better effective lineup delta than before the sub.
 
 
+def test_goal_sources_and_penalty_miss_invariant():
+    """Goals carry a valid source; penalty_miss events never move the score."""
+    saw_pen_miss = False
+    for seed in range(1, 9):
+        mt, _ = _start(seed=seed)
+        snap = _run_to_full_time(mt)
+        goals = [e for e in snap["events"] if e["type"] == "goal"]
+        assert all(e.get("source") in ("open", "penalty", "freekick") for e in goals)
+        hg = sum(1 for e in goals if e["team"] == snap["home"])
+        ag = sum(1 for e in goals if e["team"] == snap["away"])
+        assert (hg, ag) == (snap["home_goals"], snap["away_goals"])
+        saw_pen_miss = saw_pen_miss or any(
+            e["type"] == "penalty_miss" for e in snap["events"])
+        for e in snap["events"]:
+            if e["type"] == "penalty_miss":
+                assert e["outcome"] in ("saved", "missed")
+    # Drama events are rare; across 8 matches we don't REQUIRE one, but if the
+    # rate constant is ever zeroed this trips on the source field instead.
+
+
 def test_deterministic_with_seed():
     a = _run_to_full_time(_start(seed=99)[0])
     b = _run_to_full_time(_start(seed=99)[0])

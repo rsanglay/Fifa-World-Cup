@@ -26,7 +26,7 @@ export interface Player {
 }
 
 export interface MatchEvent {
-  type?: "goal" | "red" | "yellow" | "chance" | "sub" | "pens";
+  type?: "goal" | "red" | "yellow" | "chance" | "sub" | "pens" | "penalty_miss";
   minute: number;
   team: string;
   scorer: string;
@@ -35,6 +35,8 @@ export interface MatchEvent {
   assist: string | null;
   outcome?: "saved" | "missed" | "woodwork";
   second_yellow?: boolean;
+  source?: "open" | "penalty" | "freekick";
+  set_piece?: "freekick";
 }
 
 export interface LiveSnapshot {
