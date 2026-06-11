@@ -62,7 +62,10 @@ class LiveTickRequest(BaseModel):
 
 class LiveTacticsRequest(BaseModel):
     session_id: str
-    mentality: str = "balanced"
+    mentality: Optional[str] = None
+    tempo: Optional[str] = None          # slow | balanced | fast
+    passing: Optional[str] = None        # short | mixed | direct
+    pressing: Optional[str] = None       # low_block | mid | high
 
 
 class LiveSubRequest(BaseModel):

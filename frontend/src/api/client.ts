@@ -67,8 +67,8 @@ export const api = {
     post<{ session_id: string; live: LiveSnapshot | null }>("/manage/live/start", { session_id, starting_xi, mentality }),
   manageLiveTick: (session_id: string, minutes = 1) =>
     post<{ session_id: string; live: LiveSnapshot; state?: ManagedState }>("/manage/live/tick", { session_id, minutes }),
-  manageLiveTactics: (session_id: string, mentality: string) =>
-    post<{ session_id: string; live: LiveSnapshot }>("/manage/live/tactics", { session_id, mentality }),
+  manageLiveTactics: (session_id: string, t: { mentality?: string; tempo?: string; passing?: string; pressing?: string }) =>
+    post<{ session_id: string; live: LiveSnapshot }>("/manage/live/tactics", { session_id, ...t }),
   manageLiveSub: (session_id: string, out_id: string, in_id: string) =>
     post<{ session_id: string; live: LiveSnapshot; message: string }>("/manage/live/sub", { session_id, out_id, in_id }),
   modelDiagnostics: () => get<any>("/model/diagnostics"),

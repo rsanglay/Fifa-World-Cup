@@ -87,9 +87,11 @@ def live_tick(session_id: str, minutes: int = 1) -> dict:
     return out
 
 
-def live_tactics(session_id: str, mentality: str = "balanced") -> dict:
+def live_tactics(session_id: str, mentality=None, tempo=None,
+                 passing=None, pressing=None) -> dict:
     mt = _get(session_id)
-    snap = mt.live_tactics(mentality)
+    snap = mt.live_tactics(mentality=mentality, tempo=tempo,
+                           passing=passing, pressing=pressing)
     if snap is None:
         raise KeyError("No live match in progress.")
     return {"session_id": session_id, "live": snap}

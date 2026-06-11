@@ -193,9 +193,11 @@ def manage_live_tick(req: LiveTickRequest):
 
 @router.post("/manage/live/tactics")
 def manage_live_tactics(req: LiveTacticsRequest):
-    """Change mentality mid-match — takes effect from the next minute."""
+    """Change any tactical dial mid-match — mentality, tempo, passing, pressing."""
     try:
-        return manage_session.live_tactics(req.session_id, req.mentality)
+        return manage_session.live_tactics(
+            req.session_id, mentality=req.mentality, tempo=req.tempo,
+            passing=req.passing, pressing=req.pressing)
     except KeyError as e:
         raise HTTPException(404, str(e))
 

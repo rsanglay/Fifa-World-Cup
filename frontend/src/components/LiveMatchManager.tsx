@@ -10,6 +10,29 @@ const MENTALITIES = [
   { key: "balanced", label: "Balanced", icon: "⚖️" },
   { key: "attacking", label: "Attacking", icon: "⚔️" },
 ];
+const TEMPOS = [
+  { key: "slow", label: "Slow build-up" },
+  { key: "balanced", label: "Balanced" },
+  { key: "fast", label: "Fast & direct" },
+];
+const PASSINGS = [
+  { key: "short", label: "Short passing" },
+  { key: "mixed", label: "Mixed" },
+  { key: "direct", label: "Direct passing" },
+];
+const PRESSINGS = [
+  { key: "low_block", label: "Low block" },
+  { key: "mid", label: "Mid press" },
+  { key: "high", label: "High press" },
+];
+// Famous tactical identities -> dial combos (FM-preset style).
+const PRESETS: { name: string; icon: string; t: Record<string, string> }[] = [
+  { name: "Tiki-Taka", icon: "🎨", t: { mentality: "balanced", tempo: "slow", passing: "short", pressing: "high" } },
+  { name: "Gegenpress", icon: "⚡", t: { mentality: "attacking", tempo: "fast", passing: "mixed", pressing: "high" } },
+  { name: "Counter-Attack", icon: "🗡️", t: { mentality: "defensive", tempo: "fast", passing: "direct", pressing: "low_block" } },
+  { name: "Route One", icon: "🚀", t: { mentality: "balanced", tempo: "fast", passing: "direct", pressing: "mid" } },
+  { name: "Park the Bus", icon: "🚌", t: { mentality: "defensive", tempo: "slow", passing: "direct", pressing: "low_block" } },
+];
 const TICK_MS = 700; // 1 game-minute per tick at 1x
 
 /* In-game management: pause, change tactics and substitute at ANY minute,
@@ -69,10 +92,11 @@ export default function LiveMatchManager({
   const lastEvent: MatchEvent | null = live.events.length
     ? tagHome(live.events[live.events.length - 1], live.home) : null;
 
-  const setMentality = async (m: string) => {
-    const r = await api.manageLiveTactics(sid, m);
+  const setTactics = async (t: Record<string, string>) => {
+    const r = await api.manageLiveTactics(sid, t);
     setLive(r.live);
   };
+  const setMentality = (m: string) => setTactics({ mentality: m });
   const makeSub = async (outId: string, inId: string) => {
     setSubMsg(null);
     const r = await api.manageLiveSub(sid, outId, inId);
@@ -83,11 +107,15 @@ export default function LiveMatchManager({
 
   const us = live.our_side === "home"
     ? { gf: live.home_goals, ga: live.away_goals } : { gf: live.away_goals, ga: live.home_goals };
-  const possession = 0.5
-    + (live.mentality === "attacking" ? 0.07 : live.mentality === "defensive" ? -0.07 : 0)
-      * (live.our_side === "home" ? 1 : -1)
-    - (live.opp_mentality === "attacking" ? 0.07 : live.opp_mentality === "defensive" ? -0.07 : 0)
-      * (live.our_side === "home" ? 1 : -1);
+  // Cosmetic possession bias for the 2D view: short/slow keep-ball styles hold
+  // the ball more; direct/fast styles trade it away faster.
+  const styleBias = (m: string, tempo: string, passing: string) =>
+    (m === "attacking" ? 0.05 : m === "defensive" ? -0.05 : 0)
+    + (passing === "short" ? 0.06 : passing === "direct" ? -0.03 : 0)
+    + (tempo === "slow" ? 0.04 : tempo === "fast" ? -0.02 : 0);
+  const ourBias = styleBias(live.mentality, live.tempo, live.passing);
+  const oppBias = styleBias(live.opp_mentality, live.opp_tempo, live.opp_passing);
+  const possession = 0.5 + (live.our_side === "home" ? ourBias - oppBias : oppBias - ourBias);
 
   return (
     <div className="space-y-3">
@@ -155,11 +183,32 @@ export default function LiveMatchManager({
 
       {/* tactics panel */}
       {panel === "tactics" && !live.done && (
-        <div className="card p-4">
-          <div className="mb-2 text-xs uppercase tracking-wider text-gold">Match tactics — applied immediately</div>
-          <MentalityRow value={live.mentality} onPick={setMentality} />
-          <div className="mt-2 text-xs text-white/40">
-            Opposition are playing <b className="text-white/70">{live.opp_mentality}</b>.
+        <div className="card space-y-3 p-4">
+          <div className="text-xs uppercase tracking-wider text-gold">Match tactics — applied immediately</div>
+          <div className="flex flex-wrap gap-1.5">
+            {PRESETS.map((p) => {
+              const active = Object.entries(p.t).every(([k, v]) => (live as any)[k] === v);
+              return (
+                <button key={p.name} onClick={() => setTactics(p.t)}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${active ? "bg-gold text-ink" : "bg-white/5 text-white/70 hover:bg-white/10"}`}>
+                  {p.icon} {p.name}
+                </button>
+              );
+            })}
+          </div>
+          <DialRow label="Mentality" options={MENTALITIES.map((m) => ({ key: m.key, label: `${m.icon} ${m.label}` }))}
+            value={live.mentality} onPick={(v) => setTactics({ mentality: v })} />
+          <DialRow label="Tempo" options={TEMPOS} value={live.tempo} onPick={(v) => setTactics({ tempo: v })} />
+          <DialRow label="Passing" options={PASSINGS} value={live.passing} onPick={(v) => setTactics({ passing: v })} />
+          <DialRow label="Pressing" options={PRESSINGS} value={live.pressing} onPick={(v) => setTactics({ pressing: v })} />
+          {live.pressing === "high" && live.avg_stamina < 70 && (
+            <div className="rounded bg-amber-500/15 px-2 py-1 text-xs text-amber-300">
+              ⚠️ Your legs are going (avg stamina {live.avg_stamina}%) — a high press on tired legs
+              leaves space in behind. Sub fresh legs or drop the press.
+            </div>
+          )}
+          <div className="text-xs text-white/40">
+            Opposition: <b className="text-white/70">{live.opp_mentality}</b> · {oppStyle(live)}.
             {live.our_red != null && <span className="text-red-300"> You are down to 10 men ({live.our_red}').</span>}
             {live.opp_red != null && <span className="text-emerald-300"> They are down to 10 men ({live.opp_red}').</span>}
           </div>
@@ -263,6 +312,29 @@ function text(e: MatchEvent, names: Record<string, string>): string {
     case "pens": return `Penalty shoot-out: ${e.scorer}.`;
     default: return e.scorer;
   }
+}
+
+function oppStyle(l: LiveSnapshot): string {
+  if (l.opp_pressing === "low_block" && l.opp_tempo === "slow") return "parking the bus";
+  if (l.opp_pressing === "high" && l.opp_tempo === "fast") return "pressing high and chasing";
+  if (l.opp_pressing === "low_block") return "sitting deep on the counter";
+  return "playing a balanced game";
+}
+
+function DialRow({ label, options, value, onPick }: {
+  label: string; options: { key: string; label: string }[]; value: string; onPick: (v: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="w-20 text-xs uppercase tracking-wide text-white/40">{label}</span>
+      {options.map((o) => (
+        <button key={o.key} onClick={() => onPick(o.key)}
+          className={`rounded-lg px-3 py-1 text-sm font-semibold ${value === o.key ? "bg-gold text-ink" : "bg-white/5 text-white/70 hover:bg-white/10"}`}>
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 function MentalityRow({ value, onPick }: { value: string; onPick: (m: string) => void }) {

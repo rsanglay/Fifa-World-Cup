@@ -56,7 +56,14 @@ export interface LiveSnapshot {
   subs_remaining: number;
   subs: { minute: number; out_id: string; in_id: string; out: string; in: string }[];
   mentality: string;
+  tempo: "slow" | "balanced" | "fast";
+  passing: "short" | "mixed" | "direct";
+  pressing: "low_block" | "mid" | "high";
   opp_mentality: string;
+  opp_tempo: string;
+  opp_passing: string;
+  opp_pressing: string;
+  avg_stamina: number;
   our_red: number | null;
   opp_red: number | null;
   break: "HT" | "ET" | null;

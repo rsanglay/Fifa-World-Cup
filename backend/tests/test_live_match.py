@@ -156,6 +156,70 @@ def test_fatigue_drains_and_fresh_sub_restores():
     # Fresher legs -> better effective lineup delta than before the sub.
 
 
+def test_tactical_dials_move_rates_as_documented():
+    mt, _ = _start(seed=23)
+    mt.tick_live(5)
+    lv = mt.live
+
+    def rates():
+        return lv._minute_lambdas()
+
+    lv.set_tactics(tempo="balanced", passing="mixed", pressing="mid")
+    base_us, base_opp = rates()
+    # Fast tempo: more chances BOTH ways.
+    lv.set_tactics(tempo="fast")
+    fast_us, fast_opp = rates()
+    assert fast_us > base_us and fast_opp > base_opp
+    # Slow + short (control): suppresses the opponent below baseline.
+    lv.set_tactics(tempo="slow", passing="short")
+    _, ctrl_opp = rates()
+    assert ctrl_opp < base_opp
+    # Low block: we create less AND concede less than baseline.
+    lv.set_tactics(tempo="balanced", passing="mixed", pressing="low_block")
+    lb_us, lb_opp = rates()
+    assert lb_us < base_us and lb_opp < base_opp
+
+
+def test_net_clamp_bounds_extreme_combos():
+    """Gegenpress-everything must not exceed +-25% of the Elo baseline."""
+    mt, _ = _start(seed=29)
+    mt.tick_live(1)
+    lv = mt.live
+    lv.set_tactics(mentality="balanced", tempo="balanced", passing="mixed", pressing="mid")
+    lv.opp_mentality, lv.opp_tempo = "balanced", "balanced"
+    lv.opp_passing, lv.opp_pressing = "mixed", "mid"
+    base_us, base_opp = lv._minute_lambdas()
+    lv.set_tactics(mentality="attacking", tempo="fast", passing="direct", pressing="high")
+    hot_us, hot_opp = lv._minute_lambdas()
+    # Without the clamp this combo would be ~1.20*1.12*1.10*1.10 ≈ +63%.
+    assert hot_us <= base_us * 1.26
+    assert hot_opp <= base_opp * 1.27  # small headroom: fatigue stacks post-clamp
+
+
+def test_pressing_and_tempo_cost_stamina():
+    a, _ = _start(seed=31)
+    b, _ = _start(seed=31)
+    a.live.set_tactics(tempo="slow", pressing="low_block")
+    b.live.set_tactics(tempo="fast", pressing="high")
+    a.tick_live(5), a.tick_live(5)
+    b.tick_live(5), b.tick_live(5)
+    drain_a = 100 - a.live._avg_stamina()
+    drain_b = 100 - b.live._avg_stamina()
+    assert drain_b > drain_a  # heavy-metal football costs more legs
+
+
+def test_tactics_via_session_layer():
+    mt, _ = _start(seed=37)
+    mt.tick_live(1)
+    snap = mt.live_tactics(mentality="attacking", tempo="fast",
+                           passing="direct", pressing="high")
+    assert (snap["mentality"], snap["tempo"], snap["passing"], snap["pressing"]) == (
+        "attacking", "fast", "direct", "high")
+    # Unknown values are ignored, valid ones kept.
+    snap = mt.live_tactics(tempo="warp-speed")
+    assert snap["tempo"] == "fast"
+
+
 def test_goal_sources_and_penalty_miss_invariant():
     """Goals carry a valid source; penalty_miss events never move the score."""
     saw_pen_miss = False

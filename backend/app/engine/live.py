@@ -51,6 +51,37 @@ LATE_SURGE = 1.10
 MENTALITY = {"attacking": (1.20, 1.14), "balanced": (1.0, 1.0), "defensive": (0.84, 0.80)}
 SCORE_W = {"FWD": 6.0, "MID": 3.0, "DEF": 1.0, "GK": 0.02}
 
+# --- Tactical dials (compose multiplicatively with mentality) ---------------
+# Each setting: (own-rate mult, opponent-rate mult, stamina-drain mult).
+# Values are research-directed (FM team-instruction trade-offs + real-football
+# evidence: PPDA/high-turnover studies, possession-suppression research,
+# pressing fatigue literature). The NET of mentality x all dials is clamped to
+# [0.75, 1.25] per side so no combo breaks the Poisson calibration.
+TEMPO = {
+    "slow":     (0.90, 0.92, 0.95),   # patient build-up: low-event control
+    "balanced": (1.00, 1.00, 1.00),
+    "fast":     (1.12, 1.10, 1.15),   # end-to-end: chances both ways, tiring
+}
+PASSING = {
+    "short":  (0.94, 0.90, 0.98),     # retention: starves BOTH attacks
+    "mixed":  (1.00, 1.00, 1.00),
+    "direct": (1.10, 1.06, 1.02),     # vertical: faster penetration, more turnovers
+}
+PRESSING = {
+    "low_block": (0.92, 0.88, 0.90),  # sit deep: concede little, create little
+    "mid":       (1.00, 1.00, 1.00),
+    "high":      (1.10, 1.08, 1.28),  # high turnovers BOTH ways + heavy legs
+}
+NET_CLAMP = (0.75, 1.25)
+# Identity synergies (small, asymmetric — reward coherent tactical setups).
+COUNTER_BONUS = 1.06        # fast + direct vs an attacking opponent
+CONTROL_OPP_SUPPRESS = 0.95 # slow + short additionally smothers the opponent
+# High press on tired legs: documented late-game collapse — the opponent's
+# rate climbs progressively as average stamina falls below the threshold.
+PRESS_TIRED_STAMINA = 70.0
+PRESS_TIRED_RATE = 0.005    # +0.5% opponent rate per stamina point below
+PRESS_TIRED_CAP = 1.20
+
 
 class LiveMatch:
     """One in-progress managed match, advanced a minute at a time."""
@@ -74,7 +105,13 @@ class LiveMatch:
         self.bench: List[str] = [p.id for p in squad if p.id not in self.xi]
         self.stamina: Dict[str, float] = {p.id: 100.0 for p in squad}
         self.mentality = mentality
+        self.tempo = "balanced"
+        self.passing = "mixed"
+        self.pressing = "mid"
         self.opp_mentality = "balanced"
+        self.opp_tempo = "balanced"
+        self.opp_passing = "mixed"
+        self.opp_pressing = "mid"
 
         self.minute = 0
         self.hg = 0
@@ -119,11 +156,32 @@ class LiveMatch:
             self.sa.lineup_delta = delta
         lh, la = _lambdas(self.sh, self.sa, self.h_adv)
         l_us, l_opp = (lh, la) if self.us_home else (la, lh)
+        base_us, base_opp = l_us, l_opp          # pre-tactics calibration anchor
 
         own, opp = MENTALITY.get(self.mentality, (1.0, 1.0))
         l_us, l_opp = l_us * own, l_opp * opp
         o_own, o_opp = MENTALITY.get(self.opp_mentality, (1.0, 1.0))
         l_opp, l_us = l_opp * o_own, l_us * o_opp
+
+        # Tactical dials, ours then the opponent AI's.
+        l_us, l_opp = self._apply_dials(l_us, l_opp, self.tempo, self.passing,
+                                        self.pressing, self.opp_mentality)
+        l_opp, l_us = self._apply_dials(l_opp, l_us, self.opp_tempo,
+                                        self.opp_passing, self.opp_pressing,
+                                        self.mentality)
+        # Net clamp: mentality x dials may never move either side beyond ±25%
+        # of the Elo-derived baseline — archetypes stay expressive, the
+        # tournament-level goal calibration stays intact.
+        lo, hi = NET_CLAMP
+        l_us = min(max(l_us, base_us * lo), base_us * hi)
+        l_opp = min(max(l_opp, base_opp * lo), base_opp * hi)
+        # Fatigue collapse stacks AFTER the clamp (it is game state, not setup):
+        # a high press on tired legs progressively opens space in behind.
+        if self.pressing == "high":
+            avg = self._avg_stamina()
+            if avg < PRESS_TIRED_STAMINA:
+                l_opp *= min(PRESS_TIRED_CAP,
+                             1.0 + PRESS_TIRED_RATE * (PRESS_TIRED_STAMINA - avg))
 
         if self.minute > OPP_FADE_FROM:
             l_opp *= 1.0 - OPP_FADE_MAX * min(1.0, (self.minute - OPP_FADE_FROM) / 25.0)
@@ -139,15 +197,39 @@ class LiveMatch:
             l_us *= 1.22
         return l_us / 90.0, l_opp / 90.0
 
+    def _avg_stamina(self) -> float:
+        if not self.xi:
+            return 100.0
+        return sum(self.stamina[i] for i in self.xi) / len(self.xi)
+
+    @staticmethod
+    def _apply_dials(l_own, l_other, tempo, passing, pressing, other_mentality):
+        """Apply one side's tactical dials to (their rate, the opponent's rate)."""
+        for table, key in ((TEMPO, tempo), (PASSING, passing), (PRESSING, pressing)):
+            own_m, opp_m, _ = table.get(key, (1.0, 1.0, 1.0))
+            l_own *= own_m
+            l_other *= opp_m
+        # Coherent identities get a nudge.
+        if tempo == "fast" and passing == "direct" and other_mentality == "attacking":
+            l_own *= COUNTER_BONUS                      # hit them on the break
+        if tempo == "slow" and passing == "short":
+            l_other *= CONTROL_OPP_SUPPRESS             # starve them of the ball
+        return l_own, l_other
+
     # ------------------------------------------------------------ opponent AI
     def _opp_ai(self) -> None:
         diff = (self.ag - self.hg) if self.us_home else (self.hg - self.ag)
         if self.minute >= 75 and diff > 0:
-            self.opp_mentality = "defensive"
+            # Protect the lead: park the bus.
+            self.opp_mentality, self.opp_tempo = "defensive", "slow"
+            self.opp_passing, self.opp_pressing = "direct", "low_block"
         elif self.minute >= 60 and diff < 0:
-            self.opp_mentality = "attacking"
+            # Chase the game: throw everything at it.
+            self.opp_mentality, self.opp_tempo = "attacking", "fast"
+            self.opp_passing, self.opp_pressing = "direct", "high"
         else:
-            self.opp_mentality = "balanced"
+            self.opp_mentality, self.opp_tempo = "balanced", "balanced"
+            self.opp_passing, self.opp_pressing = "mixed", "mid"
 
     # --------------------------------------------------------------- events
     def _on_pitch(self, ours: bool):
@@ -273,6 +355,23 @@ class LiveMatch:
         self.mentality = mentality
         return True
 
+    def set_tactics(self, mentality=None, tempo=None, passing=None, pressing=None) -> bool:
+        """Update any subset of the tactical dials; unknown values are ignored."""
+        changed = False
+        if mentality in MENTALITY:
+            self.mentality = mentality
+            changed = True
+        if tempo in TEMPO:
+            self.tempo = tempo
+            changed = True
+        if passing in PASSING:
+            self.passing = passing
+            changed = True
+        if pressing in PRESSING:
+            self.pressing = pressing
+            changed = True
+        return changed
+
     def substitute(self, out_id: str, in_id: str) -> tuple[bool, str]:
         if self.done:
             return False, "The match is over."
@@ -318,7 +417,9 @@ class LiveMatch:
         while steps < max(1, min(int(minutes), 5)) and not self.done:
             self.minute += 1
             steps += 1
-            drain = STAMINA_DRAIN.get(self.mentality, 0.57)
+            drain = (STAMINA_DRAIN.get(self.mentality, 0.57)
+                     * TEMPO.get(self.tempo, (1, 1, 1))[2]
+                     * PRESSING.get(self.pressing, (1, 1, 1))[2])
             for pid in self.xi:
                 self.stamina[pid] = max(0.0, self.stamina[pid] - drain)
             self._opp_ai()
@@ -397,7 +498,11 @@ class LiveMatch:
             "stamina": {i: round(self.stamina[i]) for i in self.xi + self.bench},
             "subs_made": self.subs_made, "subs_remaining": SUBS_LIMIT - self.subs_made,
             "subs": self.subs, "mentality": self.mentality,
+            "tempo": self.tempo, "passing": self.passing, "pressing": self.pressing,
             "opp_mentality": self.opp_mentality,
+            "opp_tempo": self.opp_tempo, "opp_passing": self.opp_passing,
+            "opp_pressing": self.opp_pressing,
+            "avg_stamina": round(self._avg_stamina()),
             "our_red": self.our_red_minute, "opp_red": self.opp_red_minute,
             "break": self.break_flag, "done": self.done,
             "penalties": self.penalties,

@@ -363,10 +363,11 @@ class ManagedTournament:
             self._finalize_live()
         return snap
 
-    def live_tactics(self, mentality):
+    def live_tactics(self, mentality=None, tempo=None, passing=None, pressing=None):
         if self.live is None:
             return None
-        self.live.set_mentality(mentality)
+        self.live.set_tactics(mentality=mentality, tempo=tempo,
+                              passing=passing, pressing=pressing)
         return self.live.snapshot()
 
     def live_substitute(self, out_id, in_id):
