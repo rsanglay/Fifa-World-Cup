@@ -27,6 +27,42 @@ international football and the 48-team World Cup format.
     back into the live probabilities. Half-time and extra-time breaks pause
     the game for tactical decisions; yellow/red cards are shown live and carry
     real suspensions into the next round.
+- **Multiplayer — your own World Cup against friends.** Create a room, share
+  the 5-letter code, and each manager picks a nation (up to 12 humans; the AI
+  runs the other nations). All 12 groups play matchday by matchday — each
+  round waits until every manager has locked in an XI + mentality, then the
+  whole round plays at once. When two managed nations meet it's a **grudge
+  match**: both lineups and both mentalities feed the same match engine.
+  Optional **draft lobby** (nations picked in a randomized draft), **round
+  deadlines** with best-XI auto-pick for no-shows, a **trash-talk feed**, and
+  **spectator predictions** so eliminated managers keep scoring points.
+  Rooms are in-memory (no accounts) — a refresh rejoins via the saved token.
+- **LIVE head-to-head grudge matches.** When two managed nations meet, the
+  round holds and the fixture plays out **live over a WebSocket** — both
+  managers in their dugouts on the same server-clocked minute-by-minute feed,
+  changing tactics and making subs in real time while the rest of the room
+  spectates. Half-time waits for both managers to ready up; abandoned matches
+  auto-resolve so a room can never deadlock.
+- **Squad management with consequences.** Every player carries **match
+  sharpness, fatigue and morale** between rounds — an ever-present XI runs
+  out of legs by the knockouts, unused subs go rusty, rotation is a real
+  decision. **Injuries** strike mid-match (sub him or gamble on heart) and
+  rule players out for 1-2 matches, alongside yellow/red suspensions.
+- **Dressing-room events.** Between rounds the press room comes calling — a
+  benched star sulks, the papers write you off, the squad wants a night out.
+  Your call nudges morale and momentum.
+- **Golden Boot race.** Goals and assists tracked across all 104 matches
+  (every AI match included), in career mode and multiplayer.
+- **Deeper live tactics.** Attack style (target man / false nine), a
+  time-wasting toggle, named penalty takers — and the opponent AI's tactical
+  switches are announced live so you can counter them.
+- **Prediction leagues.** No squads, just football brains: friends predict
+  every match of a simulated World Cup round by round (2 pts a result, +1
+  for the exact margin) on a private leaderboard.
+- **Share cards & manager profile.** Canvas-rendered PNG cards of your
+  final, your run or a grudge-match win — built for the group chat. A
+  persistent local manager profile collects badges (World Champion, Grudge
+  Lord, Golden Boot Manager, The Oracle...) across every mode.
 - **Groups & Fixtures** — all 12 groups and 72 group-stage matches with real
   dates and venues.
 
