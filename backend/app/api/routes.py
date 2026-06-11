@@ -271,6 +271,11 @@ async def manage_live_ws(ws: WebSocket, session_id: str):
         while True:
             msg = await ws.receive_json()
             out = manage_session.ws_command(ms, msg)
+            # Re-arm the clock on every command: idempotent, and covers a
+            # loop that was cancelled by a racing disconnect (e.g. React
+            # StrictMode's ghost socket) or stopped by a tick error.
+            if not ms.done:
+                ws_handler.ensure_tick_loop(ms, lambda: manage_session.ws_tick(ms))
             if out is not None:
                 await ws.send_json(out)
     except WebSocketDisconnect:

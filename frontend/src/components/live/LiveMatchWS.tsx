@@ -59,14 +59,13 @@ export default function LiveMatchWS({
   const { frame: liveFrame, snapshot, feed, finalState, attempts, connected, failed, send } =
     useLiveSocket(matchSid);
   const frame = liveFrame || initialFrame;
-  const [playing, setPlaying] = useState(false);
+  const [playing, setPlaying] = useState(true);   // auto-kick-off intent
   const [speed, setSpeed] = useState(1);
   const [dim, setDim] = useState<"2d" | "3d">(
     () => (localStorage.getItem("wc26_view_dim") as "2d" | "3d") || "2d");
   const [panel, setPanel] = useState<"tactics" | "subs" | null>(null);
   const [subOut, setSubOut] = useState<string | null>(null);
   const [mute, setMute] = useState(isMuted());
-  const kicked = useRef(false);
   const soundedKey = useRef("");
 
   const byId = useMemo(() => Object.fromEntries(squad.map((p) => [p.id, p])), [squad]);
@@ -74,14 +73,16 @@ export default function LiveMatchWS({
   const done = !!snap?.done;
   const atBreak = snap?.break || null;
 
-  // Kick off automatically once the socket is live (server starts paused).
+  // Keep the server clock matched to the manager's intent. The server pauses
+  // whenever the last socket detaches, so the resume must be re-sent on EVERY
+  // (re)connect — first connect, StrictMode remounts and network reconnects —
+  // never just once.
   useEffect(() => {
-    if (connected && !kicked.current && !done) {
-      kicked.current = true;
+    if (connected && playing && !done) {
       send({ action: "resume" });
-      setPlaying(true);
+      if (speed !== 1) send({ action: "speed", speed });
     }
-  }, [connected, done, send]);
+  }, [connected, playing, done]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Server auto-pauses at HT/ET/FT — mirror it locally.
   useEffect(() => {

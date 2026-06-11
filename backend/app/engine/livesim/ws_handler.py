@@ -75,7 +75,18 @@ async def _run_loop(ms: MatchSession, tick_fn: Callable[[], Optional[dict]]) -> 
             if ms.paused:
                 await asyncio.sleep(PAUSE_POLL)
                 continue
-            frame = await asyncio.to_thread(tick_fn)
+            try:
+                frame = await asyncio.to_thread(tick_fn)
+            except Exception:
+                # A tick must never silently kill the clock: log loudly,
+                # pause, and let the next client command re-arm the loop.
+                import traceback
+                traceback.print_exc()
+                ms.paused = True
+                await hub.broadcast(ms.session_id, {
+                    "type": "error",
+                    "message": "Match engine error — paused. Press play to retry."})
+                continue
             if frame is None:
                 return
             snap = frame.get("snapshot") or {}
